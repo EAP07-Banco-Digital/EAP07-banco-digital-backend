@@ -34,6 +34,15 @@ public class Usuario {
     @Column(name = "cliente_id")
     private Long clienteId;
 
+    @Column(name = "intentos_fallidos")
+    private Integer intentosFallidos = 0;
+
+    @Column(name = "primer_intento_fallido")
+    private OffsetDateTime primerIntentoFallido;
+
+    @Column(name = "bloqueado_hasta")
+    private OffsetDateTime bloqueadoHasta;
+
     @ManyToOne
     @JoinColumn(name = "rol_id", nullable = false)
     private Rol rol;

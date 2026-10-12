@@ -1,6 +1,7 @@
 package com.udea.bancodigital.usuarios.service;
 
 import com.udea.bancodigital.shared.entity.Estado;
+import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.jwt.JwtService;
 import com.udea.bancodigital.usuarios.dto.LoginRequestDTO;
 import com.udea.bancodigital.usuarios.dto.LoginResponseDTO;
@@ -16,6 +17,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,7 +60,7 @@ class AuthServiceTest {
 
     @Test
     void loginExitosoDevuelveElTokenYTipoBearer() {
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
         given(jwtService.generarToken(CORREO, "CLIENTE")).willReturn("jwt.ficticio.firmado");
 
@@ -72,7 +74,7 @@ class AuthServiceTest {
     void loginExitosoFirmaElTokenConElRolDelUsuario() {
         Usuario usuario = usuarioConEstado("ACTIVO");
         usuario.setRol(new Rol(2L, "ADMIN"));
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
         given(jwtService.generarToken(anyString(), anyString())).willReturn("jwt.ficticio.firmado");
 
@@ -93,7 +95,7 @@ class AuthServiceTest {
 
     @Test
     void loginConContrasenaIncorrectaFallaYNoEmiteToken() {
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
         given(passwordEncoder.matches("Incorrecta1!", CLAVE_ENCRIPTADA)).willReturn(false);
 
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, "Incorrecta1!")))
@@ -105,7 +107,7 @@ class AuthServiceTest {
 
     @Test
     void loginConUsuarioInactivoFallaAunqueLaContrasenaSeaCorrecta() {
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConEstado("INACTIVO")));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("INACTIVO")));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
 
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)))
@@ -117,7 +119,7 @@ class AuthServiceTest {
 
     @Test
     void loginAceptaElEstadoActivoEscritoEnMinusculas() {
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConEstado("activo")));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("activo")));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
         given(jwtService.generarToken(CORREO, "CLIENTE")).willReturn("jwt.ficticio.firmado");
 
@@ -133,11 +135,74 @@ class AuthServiceTest {
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Credenciales invalidas");
 
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
         given(passwordEncoder.matches("Incorrecta1!", CLAVE_ENCRIPTADA)).willReturn(false);
 
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, "Incorrecta1!")))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Credenciales invalidas");
+    }
+
+    @Test
+    void quintoIntentoFallidoBloqueaLaCuentaPorTreintaMinutos() {
+        Usuario usuario = usuarioConEstado("ACTIVO");
+        usuario.setIntentosFallidos(4);
+        usuario.setPrimerIntentoFallido(OffsetDateTime.now().minusMinutes(5));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(false);
+
+        assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)))
+                .isInstanceOf(NegocioException.class)
+                .hasMessage("Cuenta temporalmente bloqueada");
+
+        assertThat(usuario.getIntentosFallidos()).isEqualTo(5);
+        assertThat(usuario.getBloqueadoHasta()).isAfter(OffsetDateTime.now().plusMinutes(29));
+        verify(usuarioRepository).save(usuario);
+        verify(jwtService, never()).generarToken(anyString(), anyString());
+    }
+
+    @Test
+    void cuentaBloqueadaNoValidaLaContrasenaAunqueSeaCorrecta() {
+        Usuario usuario = usuarioConEstado("ACTIVO");
+        usuario.setBloqueadoHasta(OffsetDateTime.now().plusMinutes(10));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
+
+        assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)))
+                .isInstanceOf(NegocioException.class)
+                .hasMessage("Cuenta temporalmente bloqueada");
+
+        verifyNoInteractions(passwordEncoder, jwtService);
+    }
+
+    @Test
+    void unIntentoFueraDeLaVentanaReiniciaElContador() {
+        Usuario usuario = usuarioConEstado("ACTIVO");
+        usuario.setIntentosFallidos(4);
+        usuario.setPrimerIntentoFallido(OffsetDateTime.now().minusMinutes(31));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(false);
+
+        assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)))
+                .isInstanceOf(BadCredentialsException.class);
+
+        assertThat(usuario.getIntentosFallidos()).isEqualTo(1);
+        assertThat(usuario.getPrimerIntentoFallido()).isAfter(OffsetDateTime.now().minusMinutes(1));
+    }
+
+    @Test
+    void loginExitosoReiniciaElContadorPersistido() {
+        Usuario usuario = usuarioConEstado("ACTIVO");
+        usuario.setIntentosFallidos(3);
+        usuario.setPrimerIntentoFallido(OffsetDateTime.now().minusMinutes(2));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
+        given(jwtService.generarToken(CORREO, "CLIENTE")).willReturn("jwt.ficticio.firmado");
+
+        authService.login(new LoginRequestDTO(CORREO, CLAVE));
+
+        assertThat(usuario.getIntentosFallidos()).isZero();
+        assertThat(usuario.getPrimerIntentoFallido()).isNull();
+        assertThat(usuario.getBloqueadoHasta()).isNull();
+        verify(usuarioRepository).save(usuario);
     }
 }
