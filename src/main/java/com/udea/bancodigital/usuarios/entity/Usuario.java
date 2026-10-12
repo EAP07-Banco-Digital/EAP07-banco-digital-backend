@@ -63,6 +63,12 @@ public class Usuario {
         return getClass().hashCode();
     }
 
+    // El usuario es el experto en su propio estado: la regla "esta activo"
+    // vive en un solo lugar y la comparten AuthService y el filtro JWT.
+    public boolean estaActivo() {
+        return estado != null && "ACTIVO".equalsIgnoreCase(estado.getNombre());
+    }
+
     @Override
     public String toString() {
         return "Usuario{id=" + id + ", email=" + email + "}";

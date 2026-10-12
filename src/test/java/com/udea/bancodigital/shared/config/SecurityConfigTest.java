@@ -1,6 +1,7 @@
 package com.udea.bancodigital.shared.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
 import com.udea.bancodigital.shared.jwt.JwtService;
 import com.udea.bancodigital.usuarios.controller.UsuarioController;
@@ -63,6 +64,9 @@ class SecurityConfigTest {
         usuario.setId(1L);
         usuario.setEmail(CORREO);
         usuario.setRol(new Rol(1L, rol));
+        Estado estado = new Estado();
+        estado.setNombre("ACTIVO");
+        usuario.setEstado(estado);
         return usuario;
     }
 

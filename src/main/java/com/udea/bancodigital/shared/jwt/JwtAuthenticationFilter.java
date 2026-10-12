@@ -1,5 +1,6 @@
 package com.udea.bancodigital.shared.jwt;
 
+import com.udea.bancodigital.usuarios.entity.Usuario;
 import com.udea.bancodigital.usuarios.repository.UsuarioRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -51,24 +52,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String email = jwtService.extraerEmail(token);
 
-        usuarioRepository.findByEmail(email).ifPresent(usuario -> {
+        // Solo se autentica si el usuario existe y sigue activo. Si fue
+        // desactivado despues de emitirse el token, no se establece autenticacion.
+        usuarioRepository.findByEmail(email)
+            .filter(Usuario::estaActivo)
+            .ifPresent(usuario -> {
+                var autoridad = new SimpleGrantedAuthority("ROLE_" + usuario.getRol().getNombre());
 
-            String rol = usuario.getRol().getNombre();
-
-            System.out.println("ROL DEL USUARIO: " + rol);
-
-            var autoridad = new SimpleGrantedAuthority("ROLE_" + rol);
-
-            System.out.println("AUTORIDAD: " + autoridad.getAuthority());
-
-            var autenticacion = new UsernamePasswordAuthenticationToken(
+                var autenticacion = new UsernamePasswordAuthenticationToken(
                     usuario.getEmail(),
                     null,
                     List.of(autoridad)
-            );
+                );
 
-            SecurityContextHolder.getContext().setAuthentication(autenticacion);
-        });
+                SecurityContextHolder.getContext().setAuthentication(autenticacion);
+            });
 
         filterChain.doFilter(request, response);
     }

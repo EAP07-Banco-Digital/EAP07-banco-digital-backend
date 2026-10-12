@@ -1,5 +1,6 @@
 package com.udea.bancodigital.shared.jwt;
 
+import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.usuarios.entity.Rol;
 import com.udea.bancodigital.usuarios.entity.Usuario;
 import com.udea.bancodigital.usuarios.repository.UsuarioRepository;
@@ -43,6 +44,9 @@ class JwtAuthenticationFilterTest {
         usuario.setId(1L);
         usuario.setEmail(CORREO);
         usuario.setRol(new Rol(1L, rol));
+        Estado estado = new Estado();
+        estado.setNombre("ACTIVO");
+        usuario.setEstado(estado);
         return usuario;
     }
 
@@ -109,6 +113,21 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void unTokenValidoDeUnUsuarioInactivoNoAutentica() throws Exception {
+        given(jwtService.esTokenValido(TOKEN)).willReturn(true);
+        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
+        Usuario usuario = usuarioConRol("CLIENTE");
+        Estado estado = new Estado();
+        estado.setNombre("INACTIVO");
+        usuario.setEstado(estado);
+        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+
+        pasar("Bearer " + TOKEN);
+
+        assertThat(autenticacionActual()).isNull();
+    }
+
+    @Test
     void unRolDistintoDeClienteSeTraduceEnUnaAutoridadDistinta() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
@@ -123,9 +142,6 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void unTokenDeUnUsuarioQueYaNoExisteNoAutentica() throws Exception {
-        // El filtro relee el usuario en cada peticion, pero de el solo toma el
-        // rol: no consulta el estado, asi que desactivar a alguien no le quita el
-        // acceso hasta que su token expira (DEF-T-01).
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
         given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.empty());

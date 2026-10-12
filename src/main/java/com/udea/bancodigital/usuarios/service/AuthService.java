@@ -39,7 +39,7 @@ public class AuthService {
         }
 
         // Verifica que el usuario tenga un estado que permita iniciar sesion.
-        if (!usuario.getEstado().getNombre().equalsIgnoreCase("ACTIVO")) {
+        if (!usuario.estaActivo()) {
             throw new BadCredentialsException("El usuario no esta activo");
         }
 
