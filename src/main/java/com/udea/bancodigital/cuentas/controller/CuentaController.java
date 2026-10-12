@@ -2,6 +2,8 @@ package com.udea.bancodigital.cuentas.controller;
 
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
+import com.udea.bancodigital.cuentas.dto.OperacionCuentaRequest;
+import com.udea.bancodigital.cuentas.dto.OperacionCuentaResponse;
 import com.udea.bancodigital.cuentas.service.CuentaService;
 import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import io.swagger.v3.oas.annotations.Operation;
@@ -76,5 +78,72 @@ public class CuentaController {
 
         CuentaResponse response = cuentaService.consultarSaldo(clienteId, numeroCuenta);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Registrar un depósito / crédito en una cuenta (HU14)",
+            description = """
+                    Incrementa el saldo de la cuenta indicada para el cliente autenticado y registra la transacción como EXITOSA.
+                    
+                    Reglas de negocio:
+                    - La cuenta debe pertenecer al cliente autenticado.
+                    - La cuenta debe encontrarse en estado ACTIVA.
+                    - El monto debe ser mayor que cero.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Crédito registrado exitosamente.",
+                    content = @Content(schema = @Schema(implementation = OperacionCuentaResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Monto inválido (INVALID_AMOUNT).", content = @Content),
+            @ApiResponse(responseCode = "401", description = "No autenticado. Se requiere token JWT.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "La cuenta no pertenece al cliente (FORBIDDEN).", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cuenta no encontrada (ACCOUNT_NOT_FOUND).", content = @Content),
+            @ApiResponse(responseCode = "409", description = "La cuenta no se encuentra activa o está bloqueada (ACCOUNT_NOT_ACTIVE).", content = @Content)
+    })
+    @PostMapping("/{numeroCuenta}/depositos")
+    public ResponseEntity<OperacionCuentaResponse> registrarCredito(
+            @Parameter(description = "Número de cuenta bancaria", example = "1234567890", required = true)
+            @PathVariable String numeroCuenta,
+            @RequestBody OperacionCuentaRequest request) {
+
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Long clienteId = usuarioApi.obtenerIdClientePorEmail(email);
+
+        OperacionCuentaResponse response = cuentaService.registrarCredito(clienteId, numeroCuenta, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "Registrar un retiro / débito en una cuenta (HU14)",
+            description = """
+                    Disminuye el saldo de la cuenta indicada para el cliente autenticado y registra la transacción como EXITOSA.
+                    
+                    Reglas de negocio:
+                    - La cuenta debe pertenecer al cliente autenticado.
+                    - La cuenta debe encontrarse en estado ACTIVA.
+                    - La cuenta debe tener saldo suficiente.
+                    - El monto debe ser mayor que cero y menor o igual al saldo disponible.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Débito registrado exitosamente.",
+                    content = @Content(schema = @Schema(implementation = OperacionCuentaResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Monto inválido (INVALID_AMOUNT) o saldo insuficiente (INSUFFICIENT_FUNDS).", content = @Content),
+            @ApiResponse(responseCode = "401", description = "No autenticado. Se requiere token JWT.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "La cuenta no pertenece al cliente (FORBIDDEN).", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cuenta no encontrada (ACCOUNT_NOT_FOUND).", content = @Content),
+            @ApiResponse(responseCode = "409", description = "La cuenta no se encuentra activa o está bloqueada (ACCOUNT_NOT_ACTIVE).", content = @Content)
+    })
+    @PostMapping("/{numeroCuenta}/retiros")
+    public ResponseEntity<OperacionCuentaResponse> registrarDebito(
+            @Parameter(description = "Número de cuenta bancaria", example = "1234567890", required = true)
+            @PathVariable String numeroCuenta,
+            @RequestBody OperacionCuentaRequest request) {
+
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Long clienteId = usuarioApi.obtenerIdClientePorEmail(email);
+
+        OperacionCuentaResponse response = cuentaService.registrarDebito(clienteId, numeroCuenta, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

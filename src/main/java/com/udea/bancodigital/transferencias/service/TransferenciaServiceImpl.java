@@ -2,6 +2,7 @@ package com.udea.bancodigital.transferencias.service;
 
 import com.udea.bancodigital.cuentas.api.CuentaApi;
 import com.udea.bancodigital.shared.exception.NegocioException;
+import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import com.udea.bancodigital.transferencias.dto.TransferenciaRequest;
 import com.udea.bancodigital.transferencias.dto.TransferenciaResponse;
 import com.udea.bancodigital.transferencias.entity.TipoTransaccion;
@@ -18,7 +19,7 @@ import java.time.OffsetDateTime;
 
 @Service
 @RequiredArgsConstructor
-public class TransferenciaServiceImpl implements TransferenciaService {
+public class TransferenciaServiceImpl implements TransferenciaService, TransaccionApi {
 
     private final TransaccionRepository transaccionRepository;
     private final TipoTransaccionRepository tipoTransaccionRepository;
@@ -117,5 +118,34 @@ public class TransferenciaServiceImpl implements TransferenciaService {
                 .estado("EXITOSA")
                 .fechaHora(guardada.getFechaHora())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public TransaccionInfo registrarTransaccion(
+            Long cuentaOrigenId,
+            Long cuentaDestinoId,
+            String tipoTransaccionNombre,
+            BigDecimal monto,
+            String descripcion
+    ) {
+        TipoTransaccion tipo = tipoTransaccionRepository.findByNombreIgnoreCase(tipoTransaccionNombre)
+                .orElseThrow(() -> new NegocioException(
+                        "INTERNAL_ERROR",
+                        "Tipo de transacción '" + tipoTransaccionNombre + "' no configurado",
+                        HttpStatus.INTERNAL_SERVER_ERROR
+                ));
+
+        Transaccion transaccion = Transaccion.builder()
+                .cuentaOrigenId(cuentaOrigenId)
+                .cuentaDestinoId(cuentaDestinoId)
+                .tipoTransaccion(tipo)
+                .monto(monto)
+                .descripcion(descripcion)
+                .fechaHora(OffsetDateTime.now())
+                .build();
+
+        Transaccion guardada = transaccionRepository.save(transaccion);
+        return new TransaccionInfo(guardada.getId(), guardada.getFechaHora());
     }
 }

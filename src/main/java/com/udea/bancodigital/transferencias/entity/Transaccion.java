@@ -24,7 +24,7 @@ public class Transaccion {
     @Column(name = "cuenta_origen_id")
     private Long cuentaOrigenId;
 
-    @Column(name = "cuenta_destino_id", nullable = false)
+    @Column(name = "cuenta_destino_id", nullable = true)
     private Long cuentaDestinoId;
 
     @ManyToOne(fetch = FetchType.EAGER)

@@ -3,6 +3,8 @@ package com.udea.bancodigital.cuentas.service;
 import com.udea.bancodigital.cuentas.api.CuentaApi;
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
+import com.udea.bancodigital.cuentas.dto.OperacionCuentaRequest;
+import com.udea.bancodigital.cuentas.dto.OperacionCuentaResponse;
 import com.udea.bancodigital.cuentas.entity.Cuenta;
 import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.cuentas.entity.TipoCuenta;
@@ -10,6 +12,7 @@ import com.udea.bancodigital.cuentas.repository.CuentaRepository;
 import com.udea.bancodigital.shared.repository.EstadoRepository;
 import com.udea.bancodigital.cuentas.repository.TipoCuentaRepository;
 import com.udea.bancodigital.shared.exception.NegocioException;
+import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ public class CuentaServiceImpl implements CuentaService, CuentaApi {
     private final CuentaRepository cuentaRepository;
     private final TipoCuentaRepository tipoCuentaRepository;
     private final EstadoRepository estadoRepository;
+    private final TransaccionApi transaccionApi;
 
     @Override
     @Transactional
@@ -106,6 +110,134 @@ public class CuentaServiceImpl implements CuentaService, CuentaApi {
 
         // HU6 - Criterio 4: Si está BLOQUEADA, la consulta retorna saldo + estado con HTTP 200
         return mapToResponse(cuenta);
+    }
+
+    @Override
+    @Transactional
+    public OperacionCuentaResponse registrarCredito(Long clienteId, String numeroCuenta, OperacionCuentaRequest request) {
+        if (clienteId == null) {
+            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        if (request == null || request.getMonto() == null || request.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new NegocioException(
+                    "INVALID_AMOUNT",
+                    "El monto del crédito debe ser mayor a cero",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
+                .orElseThrow(() -> new NegocioException(
+                        "ACCOUNT_NOT_FOUND",
+                        "La cuenta consultada no existe",
+                        HttpStatus.NOT_FOUND
+                ));
+
+        if (!cuenta.getClienteId().equals(clienteId)) {
+            throw new NegocioException(
+                    "FORBIDDEN",
+                    "No tiene permisos para operar sobre esta cuenta",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+
+        if (!"ACTIVA".equalsIgnoreCase(cuenta.getEstado().getNombre())) {
+            throw new NegocioException(
+                    "ACCOUNT_NOT_ACTIVE",
+                    "La cuenta se encuentra bloqueada o inactiva",
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        BigDecimal nuevoSaldo = cuenta.getSaldoDisponible().add(request.getMonto());
+        cuenta.setSaldoDisponible(nuevoSaldo);
+        cuentaRepository.save(cuenta);
+
+        TransaccionApi.TransaccionInfo transaccionInfo = transaccionApi.registrarTransaccion(
+                cuenta.getId(),
+                null,
+                "CREDITO",
+                request.getMonto(),
+                "Depósito a cuenta"
+        );
+
+        return OperacionCuentaResponse.builder()
+                .transaccionId(transaccionInfo.transaccionId())
+                .numeroCuenta(cuenta.getNumeroCuenta())
+                .monto(request.getMonto())
+                .saldoNuevo(nuevoSaldo)
+                .estado("EXITOSA")
+                .fechaHora(transaccionInfo.fechaHora())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public OperacionCuentaResponse registrarDebito(Long clienteId, String numeroCuenta, OperacionCuentaRequest request) {
+        if (clienteId == null) {
+            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        if (request == null || request.getMonto() == null || request.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new NegocioException(
+                    "INVALID_AMOUNT",
+                    "El monto del débito debe ser mayor a cero",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
+                .orElseThrow(() -> new NegocioException(
+                        "ACCOUNT_NOT_FOUND",
+                        "La cuenta consultada no existe",
+                        HttpStatus.NOT_FOUND
+                ));
+
+        if (!cuenta.getClienteId().equals(clienteId)) {
+            throw new NegocioException(
+                    "FORBIDDEN",
+                    "No tiene permisos para operar sobre esta cuenta",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+
+        if (!"ACTIVA".equalsIgnoreCase(cuenta.getEstado().getNombre())) {
+            throw new NegocioException(
+                    "ACCOUNT_NOT_ACTIVE",
+                    "La cuenta se encuentra bloqueada o inactiva",
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        if (cuenta.getSaldoDisponible().compareTo(request.getMonto()) < 0) {
+            throw new NegocioException(
+                    "INSUFFICIENT_FUNDS",
+                    "Saldo insuficiente para realizar el débito",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        BigDecimal nuevoSaldo = cuenta.getSaldoDisponible().subtract(request.getMonto());
+        cuenta.setSaldoDisponible(nuevoSaldo);
+        cuentaRepository.save(cuenta);
+
+        TransaccionApi.TransaccionInfo transaccionInfo = transaccionApi.registrarTransaccion(
+                cuenta.getId(),
+                null,
+                "DEBITO",
+                request.getMonto(),
+                "Retiro de cuenta"
+        );
+
+        return OperacionCuentaResponse.builder()
+                .transaccionId(transaccionInfo.transaccionId())
+                .numeroCuenta(cuenta.getNumeroCuenta())
+                .monto(request.getMonto())
+                .saldoNuevo(nuevoSaldo)
+                .estado("EXITOSA")
+                .fechaHora(transaccionInfo.fechaHora())
+                .build();
     }
 
     // --- Métodos de la CuentaApi (para comunicación entre módulos) ---
