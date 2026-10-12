@@ -3,6 +3,7 @@ package com.udea.bancodigital.cuentas.service;
 import com.udea.bancodigital.cuentas.api.CuentaApi;
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
+import com.udea.bancodigital.cuentas.dto.HistorialTransaccionResponse;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaResponse;
 import com.udea.bancodigital.cuentas.entity.Cuenta;
@@ -14,12 +15,19 @@ import com.udea.bancodigital.cuentas.repository.TipoCuentaRepository;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Random;
 
 @Service
@@ -238,6 +246,115 @@ public class CuentaServiceImpl implements CuentaService, CuentaApi {
                 .estado("EXITOSA")
                 .fechaHora(transaccionInfo.fechaHora())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<HistorialTransaccionResponse> consultarHistorial(
+            Long clienteId,
+            String numeroCuenta,
+            LocalDate desde,
+            LocalDate hasta,
+            String tipoTransaccion,
+            int page,
+            int size
+    ) {
+        if (clienteId == null) {
+            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
+                .orElseThrow(() -> new NegocioException(
+                        "ACCOUNT_NOT_FOUND",
+                        "La cuenta consultada no existe",
+                        HttpStatus.NOT_FOUND
+                ));
+
+        if (!cuenta.getClienteId().equals(clienteId)) {
+            throw new NegocioException(
+                    "FORBIDDEN",
+                    "No tiene permisos para consultar el historial de esta cuenta",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+
+        if (!"ACTIVA".equalsIgnoreCase(cuenta.getEstado().getNombre())) {
+            throw new NegocioException(
+                    "ACCOUNT_NOT_ACTIVE",
+                    "La cuenta se encuentra bloqueada o inactiva",
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new NegocioException(
+                    "INVALID_DATE_RANGE",
+                    "La fecha 'desde' no puede ser posterior a la fecha 'hasta'",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        OffsetDateTime desdeOffset = (desde != null) ? desde.atStartOfDay().atOffset(ZoneOffset.UTC) : null;
+        OffsetDateTime hastaOffset = (hasta != null) ? hasta.atTime(LocalTime.MAX).atOffset(ZoneOffset.UTC) : null;
+
+        int pageIndex = Math.max(0, page - 1);
+        int pageSize = size > 0 ? size : 10;
+
+        Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.DESC, "fechaHora"));
+
+        Page<TransaccionApi.TransaccionDetalle> transaccionesPage = transaccionApi.consultarHistorial(
+                cuenta.getId(),
+                desdeOffset,
+                hastaOffset,
+                tipoTransaccion,
+                pageable
+        );
+
+        return transaccionesPage.map(t -> {
+            String tipoMovimiento;
+            if ("CREDITO".equalsIgnoreCase(t.tipoTransaccion())) {
+                tipoMovimiento = "ENTRADA";
+            } else if ("DEBITO".equalsIgnoreCase(t.tipoTransaccion())) {
+                tipoMovimiento = "SALIDA";
+            } else if (cuenta.getId().equals(t.cuentaOrigenId())) {
+                tipoMovimiento = "SALIDA";
+            } else {
+                tipoMovimiento = "ENTRADA";
+            }
+
+            String numeroOrigen = null;
+            if (t.cuentaOrigenId() != null) {
+                if (t.cuentaOrigenId().equals(cuenta.getId())) {
+                    numeroOrigen = cuenta.getNumeroCuenta();
+                } else {
+                    numeroOrigen = cuentaRepository.findById(t.cuentaOrigenId())
+                            .map(Cuenta::getNumeroCuenta)
+                            .orElse(null);
+                }
+            }
+
+            String numeroDestino = null;
+            if (t.cuentaDestinoId() != null) {
+                if (t.cuentaDestinoId().equals(cuenta.getId())) {
+                    numeroDestino = cuenta.getNumeroCuenta();
+                } else {
+                    numeroDestino = cuentaRepository.findById(t.cuentaDestinoId())
+                            .map(Cuenta::getNumeroCuenta)
+                            .orElse(null);
+                }
+            }
+
+            return HistorialTransaccionResponse.builder()
+                    .transaccionId(t.id())
+                    .fechaHora(t.fechaHora())
+                    .tipoTransaccion(t.tipoTransaccion())
+                    .monto(t.monto())
+                    .descripcion(t.descripcion())
+                    .numeroCuentaOrigen(numeroOrigen)
+                    .numeroCuentaDestino(numeroDestino)
+                    .tipoMovimiento(tipoMovimiento)
+                    .build();
+        });
     }
 
     // --- Métodos de la CuentaApi (para comunicación entre módulos) ---

@@ -9,13 +9,19 @@ import com.udea.bancodigital.transferencias.entity.TipoTransaccion;
 import com.udea.bancodigital.transferencias.entity.Transaccion;
 import com.udea.bancodigital.transferencias.repository.TipoTransaccionRepository;
 import com.udea.bancodigital.transferencias.repository.TransaccionRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -147,5 +153,62 @@ public class TransferenciaServiceImpl implements TransferenciaService, Transacci
 
         Transaccion guardada = transaccionRepository.save(transaccion);
         return new TransaccionInfo(guardada.getId(), guardada.getFechaHora());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TransaccionDetalle> consultarHistorial(
+            Long cuentaId,
+            OffsetDateTime desde,
+            OffsetDateTime hasta,
+            String tipoTransaccion,
+            Pageable pageable
+    ) {
+        Long tipoId = null;
+        if (tipoTransaccion != null && !tipoTransaccion.isBlank()) {
+            TipoTransaccion tipo = tipoTransaccionRepository.findByNombreIgnoreCase(tipoTransaccion.trim())
+                    .orElseThrow(() -> new NegocioException(
+                            "INVALID_TRANSACTION_TYPE",
+                            "Tipo de transacción no válido: " + tipoTransaccion,
+                            HttpStatus.BAD_REQUEST
+                    ));
+            tipoId = tipo.getId();
+        }
+
+        final Long finalTipoId = tipoId;
+        Specification<Transaccion> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.or(
+                    cb.equal(root.get("cuentaOrigenId"), cuentaId),
+                    cb.equal(root.get("cuentaDestinoId"), cuentaId)
+            ));
+
+            if (desde != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("fechaHora"), desde));
+            }
+
+            if (hasta != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("fechaHora"), hasta));
+            }
+
+            if (finalTipoId != null) {
+                predicates.add(cb.equal(root.get("tipoTransaccion").get("id"), finalTipoId));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Transaccion> transaccionesPage = transaccionRepository.findAll(spec, pageable);
+
+        return transaccionesPage.map(t -> new TransaccionDetalle(
+                t.getId(),
+                t.getCuentaOrigenId(),
+                t.getCuentaDestinoId(),
+                t.getTipoTransaccion().getNombre(),
+                t.getMonto(),
+                t.getFechaHora(),
+                t.getDescripcion()
+        ));
     }
 }
