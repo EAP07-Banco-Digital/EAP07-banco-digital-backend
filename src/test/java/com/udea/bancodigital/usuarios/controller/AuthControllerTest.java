@@ -63,17 +63,18 @@ class AuthControllerTest {
 
     @Test
     void loginExitosoDevuelve200ConElTokenYTipoBearer() throws Exception {
-        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer"));
+        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer", "CLIENTE"));
 
         iniciarSesion(credencialesValidas())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("jwt.ficticio.firmado"))
-                .andExpect(jsonPath("$.tipo").value("Bearer"));
+            .andExpect(jsonPath("$.tipo").value("Bearer"))
+            .andExpect(jsonPath("$.rol").value("CLIENTE"));
     }
 
     @Test
     void laRespuestaDelLoginNoExponeElHashDeLaContrasena() throws Exception {
-        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer"));
+        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer", "CLIENTE"));
 
         iniciarSesion(credencialesValidas())
                 .andExpect(jsonPath("$.password").doesNotExist())
@@ -144,7 +145,7 @@ class AuthControllerTest {
 
     @Test
     void elServicioRecibeElCorreoYLaContrasenaTalComoVinieron() throws Exception {
-        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer"));
+        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer", "CLIENTE"));
 
         iniciarSesion(credencialesValidas());
 

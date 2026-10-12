@@ -49,7 +49,7 @@ public class AuthService {
         // Genera el JWT utilizando el email y el rol del usuario.
         String token = jwtService.generarToken(usuario.getEmail(), rol);
 
-        // Devuelve el token y el tipo de autenticacion esperado por el frontend.
-        return new LoginResponseDTO(token, "Bearer");
+        // Devuelve el token, el tipo de autenticacion y el rol del usuario.
+        return new LoginResponseDTO(token, "Bearer", rol);
     }
 }
