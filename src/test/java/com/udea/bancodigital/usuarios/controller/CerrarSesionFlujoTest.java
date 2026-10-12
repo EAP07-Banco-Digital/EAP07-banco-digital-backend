@@ -174,6 +174,34 @@ class CerrarSesionFlujoTest {
     }
 
     @Test
+    void unAdministradorTambienPuedeCerrarSesion() throws Exception {
+        String correoAdmin = "admin@banco.com";
+        Usuario administrador = new Usuario();
+        administrador.setId(2L);
+        administrador.setEmail(correoAdmin);
+        administrador.setPasswordHash(passwordEncoder.encode(CLAVE));
+        administrador.setRol(new Rol(2L, "ADMIN"));
+        administrador.setEstado(new Estado(1L, null, "ACTIVO"));
+        given(usuarioRepository.findByEmail(correoAdmin)).willReturn(Optional.of(administrador));
+        given(usuarioService.obtenerRolPorEmail(correoAdmin)).willReturn(Optional.of("ADMIN"));
+
+        String cuerpo = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", correoAdmin, "password", CLAVE))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String token = objectMapper.readTree(cuerpo).get("token").asText();
+
+        mockMvc.perform(post("/api/auth/logout").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Sesion cerrada correctamente"));
+
+        mockMvc.perform(post("/api/auth/logout").header("Authorization", bearer(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("TOKEN_REVOKED"));
+    }
+
+    @Test
     void trasCerrarSesionSePuedeVolverAIniciarSesionYUsarElNuevoToken() throws Exception {
         String viejo = iniciarSesion();
         mockMvc.perform(post("/api/auth/logout").header("Authorization", bearer(viejo)))

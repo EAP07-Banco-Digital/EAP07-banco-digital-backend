@@ -42,6 +42,9 @@ public class SecurityConfig {
                         // HU9: solo un administrador cambia roles. Va antes de
                         // anyRequest porque gana la primera regla que coincide.
                         .requestMatchers(HttpMethod.PUT, "/api/usuarios/*/rol").hasRole("ADMIN")
+                        // HU8: cerrar sesion es para cualquier usuario autenticado, no
+                        // solo clientes; si cayera en anyRequest, un ADMIN recibiria 403.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         .anyRequest().hasRole("CLIENTE")
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
