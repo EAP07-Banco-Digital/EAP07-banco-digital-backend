@@ -91,7 +91,7 @@ class SecurityConfigTest {
     void unEndpointProtegidoSinTokenDevuelve401ConElJsonUniforme() throws Exception {
         mockMvc.perform(get("/api/usuarios/me"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"))
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"))
                 .andExpect(jsonPath("$.message").value("Debes iniciar sesion para acceder a este recurso"))
                 .andExpect(content().string(not(containsString("traceId\":null"))));
     }
@@ -112,7 +112,7 @@ class SecurityConfigTest {
 
         mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer token.inventado"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test
@@ -135,7 +135,7 @@ class SecurityConfigTest {
 
         mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test
@@ -186,6 +186,6 @@ class SecurityConfigTest {
         // permitAll exige token, aunque la ruta no exista.
         mockMvc.perform(get("/api/ruta-que-no-existe"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 }

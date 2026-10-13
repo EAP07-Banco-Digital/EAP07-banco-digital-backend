@@ -1,6 +1,7 @@
 package com.udea.bancodigital.shared.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.udea.bancodigital.shared.exception.CodigosError;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
@@ -26,7 +27,7 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         Map<String, Object> body = new HashMap<>();
-        body.put("errorCode", "UNAUTHENTICATED");
+        body.put("errorCode", CodigosError.UNAUTHORIZED);
         body.put("message", "Debes iniciar sesion para acceder a este recurso");
         body.put("details", null);
         body.put("traceId", request.getAttribute(TraceIdFilter.TRACE_ID_ATTR));
