@@ -214,7 +214,7 @@ class GestionRolesFlujoTest {
     void cambiarRolSinTokenRecibe401() throws Exception {
         cambiarRol(null, CLIENTE_ID, "{\"rol\":\"ADMIN\"}")
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test

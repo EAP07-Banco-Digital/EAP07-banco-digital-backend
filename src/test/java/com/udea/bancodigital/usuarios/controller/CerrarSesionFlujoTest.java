@@ -155,10 +155,10 @@ class CerrarSesionFlujoTest {
     }
 
     @Test
-    void cerrarSesionSinTokenResponde401Unauthenticated() throws Exception {
+    void cerrarSesionSinTokenResponde401Unauthorized() throws Exception {
         mockMvc.perform(post("/api/auth/logout"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test

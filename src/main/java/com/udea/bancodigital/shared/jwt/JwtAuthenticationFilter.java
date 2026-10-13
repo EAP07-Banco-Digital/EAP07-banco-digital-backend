@@ -20,7 +20,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String PREFIJO_BEARER = "Bearer ";
 
     // Marca que deja el filtro cuando el token llego revocado, para que
-    // CustomAuthEntryPoint responda TOKEN_REVOKED en lugar de UNAUTHENTICATED.
+    // CustomAuthEntryPoint responda TOKEN_REVOKED en lugar de UNAUTHORIZED.
     public static final String TOKEN_REVOCADO_ATTR = "tokenRevocado";
 
     private final JwtService jwtService;

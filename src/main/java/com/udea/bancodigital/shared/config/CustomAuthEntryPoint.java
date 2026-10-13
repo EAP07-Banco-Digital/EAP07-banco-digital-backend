@@ -1,6 +1,7 @@
 package com.udea.bancodigital.shared.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.udea.bancodigital.shared.exception.CodigosError;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,7 +35,7 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
             body.put("errorCode", "TOKEN_REVOKED");
             body.put("message", "La sesion fue cerrada. Inicia sesion de nuevo");
         } else {
-            body.put("errorCode", "UNAUTHENTICATED");
+            body.put("errorCode", CodigosError.UNAUTHORIZED);
             body.put("message", "Debes iniciar sesion para acceder a este recurso");
         }
         body.put("details", null);
