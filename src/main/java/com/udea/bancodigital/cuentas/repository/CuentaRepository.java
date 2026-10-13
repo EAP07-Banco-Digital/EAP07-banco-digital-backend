@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
 
@@ -21,4 +22,5 @@ public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
             @Param("clienteId") Long clienteId,
             @Param("tipoCuentaNombre") String tipoCuentaNombre
     );
+    List<Cuenta> findByClienteIdOrderByFechaAperturaDesc(Long clienteId);
 }

@@ -2,8 +2,10 @@ package com.udea.bancodigital.cuentas.controller;
 
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
+import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
 import com.udea.bancodigital.cuentas.service.CuentaService;
 import com.udea.bancodigital.usuarios.api.UsuarioApi;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/cuentas")
@@ -53,6 +57,34 @@ public class CuentaController {
 
         CuentaResponse response = cuentaService.solicitarAperturaCuenta(clienteId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "Consultar estado de cuentas (HU11)",
+            description = """
+                    Retorna la lista de cuentas del cliente autenticado con número, tipo, estado y fecha de apertura.
+                    
+                    Si el cliente no tiene cuentas, retorna una lista vacía con HTTP 200.
+                    
+                    El parámetro `clienteId` es opcional; si se envía y no corresponde al cliente autenticado,
+                    la solicitud se rechaza con 403 `FORBIDDEN`.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista de cuentas (puede estar vacía).",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = CuentaResumenResponse.class)))),
+            @ApiResponse(responseCode = "401", description = "No autenticado. Se requiere token JWT.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Intento de consultar las cuentas de otro cliente.", content = @Content)
+    })
+    @GetMapping
+    public ResponseEntity<List<CuentaResumenResponse>> listarCuentas(
+            @Parameter(description = "Id del cliente. Opcional; debe coincidir con el cliente autenticado")
+            @RequestParam(required = false) Long clienteId) {
+
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Long clienteIdAutenticado = usuarioApi.obtenerIdClientePorEmail(email);
+
+        return ResponseEntity.ok(cuentaService.listarCuentas(clienteIdAutenticado, clienteId));
     }
 
     @Operation(
