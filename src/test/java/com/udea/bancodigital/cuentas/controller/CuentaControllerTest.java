@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
 import com.udea.bancodigital.cuentas.service.CuentaService;
+import com.udea.bancodigital.shared.config.CustomAccessDeniedHandler;
 import com.udea.bancodigital.shared.config.CustomAuthEntryPoint;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
@@ -57,6 +58,9 @@ class CuentaControllerTest {
 
     @MockitoBean
     private CustomAuthEntryPoint customAuthEntryPoint;
+
+    @MockitoBean
+    private CustomAccessDeniedHandler customAccessDeniedHandler;
 
     private CuentaResponse respuesta(String estado, String saldo) {
         return CuentaResponse.builder()

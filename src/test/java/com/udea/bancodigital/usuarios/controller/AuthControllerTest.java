@@ -1,12 +1,14 @@
 package com.udea.bancodigital.usuarios.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.udea.bancodigital.shared.config.CustomAccessDeniedHandler;
 import com.udea.bancodigital.shared.config.CustomAuthEntryPoint;
 import com.udea.bancodigital.shared.config.TraceIdFilter;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
 import com.udea.bancodigital.usuarios.dto.LoginRequestDTO;
 import com.udea.bancodigital.usuarios.dto.LoginResponseDTO;
+import com.udea.bancodigital.usuarios.dto.LogoutResponseDTO;
 import com.udea.bancodigital.usuarios.service.AuthService;
 import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
@@ -50,6 +52,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private CustomAuthEntryPoint customAuthEntryPoint;
+
+    @MockitoBean
+    private CustomAccessDeniedHandler customAccessDeniedHandler;
 
     private Map<String, String> credencialesValidas() {
         Map<String, String> cuerpo = new HashMap<>();
@@ -174,5 +179,17 @@ class AuthControllerTest {
         Mockito.verify(authService).login(captor.capture());
         Assertions.assertThat(captor.getValue().getEmail()).isEqualTo("juan@banco.com");
         Assertions.assertThat(captor.getValue().getPassword()).isEqualTo("Segura123!");
+    }
+
+    @Test
+    void logoutDevuelve200YLeEntregaAlServicioElTokenSinElPrefijoBearer() throws Exception {
+        given(authService.logout("jwt.ficticio.firmado"))
+                .willReturn(new LogoutResponseDTO("Sesion cerrada correctamente"));
+
+        mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer jwt.ficticio.firmado"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Sesion cerrada correctamente"));
+
+        Mockito.verify(authService).logout("jwt.ficticio.firmado");
     }
 }

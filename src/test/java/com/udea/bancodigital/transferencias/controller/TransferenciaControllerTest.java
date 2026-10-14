@@ -1,6 +1,7 @@
 package com.udea.bancodigital.transferencias.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.udea.bancodigital.shared.config.CustomAccessDeniedHandler;
 import com.udea.bancodigital.shared.config.CustomAuthEntryPoint;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
@@ -55,6 +56,9 @@ class TransferenciaControllerTest {
 
     @MockitoBean
     private CustomAuthEntryPoint customAuthEntryPoint;
+
+    @MockitoBean
+    private CustomAccessDeniedHandler customAccessDeniedHandler;
 
     private TransferenciaRequest solicitud(String origen, String destino, String monto) {
         TransferenciaRequest request = new TransferenciaRequest();

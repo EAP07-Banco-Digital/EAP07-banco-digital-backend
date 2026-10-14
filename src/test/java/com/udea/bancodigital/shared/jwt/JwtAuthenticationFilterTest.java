@@ -1,9 +1,6 @@
 package com.udea.bancodigital.shared.jwt;
 
-import com.udea.bancodigital.shared.entity.Estado;
-import com.udea.bancodigital.usuarios.entity.Rol;
-import com.udea.bancodigital.usuarios.entity.Usuario;
-import com.udea.bancodigital.usuarios.repository.UsuarioRepository;
+import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,30 +31,24 @@ class JwtAuthenticationFilterTest {
     private JwtService jwtService;
 
     @Mock
-    private UsuarioRepository usuarioRepository;
+    private UsuarioApi usuarioApi;
+
+    @Mock
+    private RevocacionTokenService revocacionTokenService;
 
     @InjectMocks
     private JwtAuthenticationFilter filtro;
 
-    private Usuario usuarioConRol(String rol) {
-        Usuario usuario = new Usuario();
-        usuario.setId(1L);
-        usuario.setEmail(CORREO);
-        usuario.setRol(new Rol(1L, rol));
-        Estado estado = new Estado();
-        estado.setNombre("ACTIVO");
-        usuario.setEstado(estado);
-        return usuario;
-    }
-
-    private MockHttpServletResponse pasar(String headerAuthorization) throws Exception {
+    private MockHttpServletRequest pasar(String headerAuthorization) throws Exception {
         MockHttpServletRequest peticion = new MockHttpServletRequest("GET", "/api/usuarios/me");
         if (headerAuthorization != null) {
             peticion.addHeader("Authorization", headerAuthorization);
         }
-        MockHttpServletResponse respuesta = new MockHttpServletResponse();
-        filtro.doFilter(peticion, respuesta, new MockFilterChain());
-        return respuesta;
+        MockFilterChain cadena = new MockFilterChain();
+        filtro.doFilter(peticion, new MockHttpServletResponse(), cadena);
+        // El filtro nunca corta la peticion: siempre la deja seguir.
+        assertThat(cadena.getRequest()).isSameAs(peticion);
+        return peticion;
     }
 
     private Authentication autenticacionActual() {
@@ -74,7 +65,7 @@ class JwtAuthenticationFilterTest {
         pasar(null);
 
         assertThat(autenticacionActual()).isNull();
-        verifyNoInteractions(jwtService, usuarioRepository);
+        verifyNoInteractions(jwtService, usuarioApi, revocacionTokenService);
     }
 
     @Test
@@ -82,7 +73,7 @@ class JwtAuthenticationFilterTest {
         pasar("Basic YXVuOmNvcm5lcGFzcw==");
 
         assertThat(autenticacionActual()).isNull();
-        verifyNoInteractions(jwtService, usuarioRepository);
+        verifyNoInteractions(jwtService, usuarioApi);
     }
 
     @Test
@@ -94,14 +85,14 @@ class JwtAuthenticationFilterTest {
         assertThat(autenticacionActual()).isNull();
         // La peticion no se corta aqui: responder 401 es trabajo de la cadena
         // de seguridad, no del filtro.
-        verifyNoInteractions(usuarioRepository);
+        verifyNoInteractions(usuarioApi, revocacionTokenService);
     }
 
     @Test
     void unTokenValidoAutenticaConElCorreoYElRolDelUsuario() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConRol("CLIENTE")));
+        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
 
         pasar("Bearer " + TOKEN);
 
@@ -113,25 +104,10 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void unTokenValidoDeUnUsuarioInactivoNoAutentica() throws Exception {
-        given(jwtService.esTokenValido(TOKEN)).willReturn(true);
-        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        Usuario usuario = usuarioConRol("CLIENTE");
-        Estado estado = new Estado();
-        estado.setNombre("INACTIVO");
-        usuario.setEstado(estado);
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
-
-        pasar("Bearer " + TOKEN);
-
-        assertThat(autenticacionActual()).isNull();
-    }
-
-    @Test
     void unRolDistintoDeClienteSeTraduceEnUnaAutoridadDistinta() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConRol("ADMIN")));
+        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("ADMIN"));
 
         pasar("Bearer " + TOKEN);
 
@@ -144,7 +120,7 @@ class JwtAuthenticationFilterTest {
     void unTokenDeUnUsuarioQueYaNoExisteNoAutentica() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.empty());
+        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.empty());
 
         pasar("Bearer " + TOKEN);
 
@@ -155,10 +131,35 @@ class JwtAuthenticationFilterTest {
     void laAutenticacionNoExponeElTokenComoCredencial() throws Exception {
         given(jwtService.esTokenValido(anyString())).willReturn(true);
         when(jwtService.extraerEmail(anyString())).thenReturn(CORREO);
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConRol("CLIENTE")));
+        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
 
         pasar("Bearer " + TOKEN);
 
         assertThat(autenticacionActual().getCredentials()).isNull();
+    }
+
+    @Test
+    void unTokenRevocadoNoAutenticaYDejaLaMarcaParaElEntryPoint() throws Exception {
+        given(jwtService.esTokenValido(TOKEN)).willReturn(true);
+        given(revocacionTokenService.estaRevocado(TOKEN)).willReturn(true);
+
+        MockHttpServletRequest peticion = pasar("Bearer " + TOKEN);
+
+        assertThat(autenticacionActual()).isNull();
+        assertThat(peticion.getAttribute(JwtAuthenticationFilter.TOKEN_REVOCADO_ATTR)).isEqualTo(Boolean.TRUE);
+        // Revocado gana: ni siquiera se busca al usuario.
+        verifyNoInteractions(usuarioApi);
+    }
+
+    @Test
+    void unTokenVigenteNoRevocadoNoDejaLaMarcaDeRevocado() throws Exception {
+        given(jwtService.esTokenValido(TOKEN)).willReturn(true);
+        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
+        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
+
+        MockHttpServletRequest peticion = pasar("Bearer " + TOKEN);
+
+        assertThat(peticion.getAttribute(JwtAuthenticationFilter.TOKEN_REVOCADO_ATTR)).isNull();
+        assertThat(autenticacionActual()).isNotNull();
     }
 }

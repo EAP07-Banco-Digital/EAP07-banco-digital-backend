@@ -1,6 +1,7 @@
 package com.udea.bancodigital.usuarios.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.udea.bancodigital.shared.config.CustomAccessDeniedHandler;
 import com.udea.bancodigital.shared.config.CustomAuthEntryPoint;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
@@ -56,6 +57,9 @@ class UsuarioControllerPerfilTest {
 
     @MockitoBean
     private CustomAuthEntryPoint customAuthEntryPoint;
+
+    @MockitoBean
+    private CustomAccessDeniedHandler customAccessDeniedHandler;
 
     private PerfilUsuarioDTO perfil() {
         return new PerfilUsuarioDTO(1L, "Juan Manuel Tabares", CORREO_DEL_TOKEN, "***4321",
