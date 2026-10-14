@@ -1,6 +1,7 @@
 package com.udea.bancodigital.transferencias.service;
 
 import com.udea.bancodigital.cuentas.api.CuentaApi;
+import com.udea.bancodigital.shared.exception.CodigosError;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.transferencias.dto.TransferenciaRequest;
 import com.udea.bancodigital.transferencias.dto.TransferenciaResponse;
@@ -31,7 +32,7 @@ public class TransferenciaServiceImpl implements TransferenciaService {
     public TransferenciaResponse realizarTransferencia(Long clienteId, TransferenciaRequest request) {
 
         if (clienteId == null) {
-            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+            throw new NegocioException(CodigosError.UNAUTHORIZED, "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
         }
 
         if (request.getNumeroCuentaOrigen().equals(request.getNumeroCuentaDestino())) {

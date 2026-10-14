@@ -1,6 +1,6 @@
 package com.udea.bancodigital.shared.jwt;
 
-import com.udea.bancodigital.usuarios.repository.UsuarioRepository;
+import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,15 +17,26 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    public static final String PREFIJO_BEARER = "Bearer ";
+
+    // Marca que deja el filtro cuando el token llego revocado, para que
+    // CustomAuthEntryPoint responda TOKEN_REVOKED en lugar de UNAUTHORIZED.
+    public static final String TOKEN_REVOCADO_ATTR = "tokenRevocado";
+
     private final JwtService jwtService;
-    private final UsuarioRepository usuarioRepository;
+    // Solo la API publica del modulo de usuarios: el filtro vive en shared y no
+    // debe conocer la entidad Usuario ni su repositorio.
+    private final UsuarioApi usuarioApi;
+    private final RevocacionTokenService revocacionTokenService;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            UsuarioRepository usuarioRepository
+            UsuarioApi usuarioApi,
+            RevocacionTokenService revocacionTokenService
     ) {
         this.jwtService = jwtService;
-        this.usuarioRepository = usuarioRepository;
+        this.usuarioApi = usuarioApi;
+        this.revocacionTokenService = revocacionTokenService;
     }
 
     @Override
@@ -37,34 +48,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authorizationHeader = request.getHeader("Authorization");
 
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith(PREFIJO_BEARER)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authorizationHeader.substring(7);
+        String token = authorizationHeader.substring(PREFIJO_BEARER.length());
 
         if (!jwtService.esTokenValido(token)) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // Un token revocado sigue con firma y fecha validas: no se autentica, y
+        // la peticion sigue para que la cadena de seguridad decida. En una ruta
+        // protegida eso termina en 401 TOKEN_REVOKED; en una publica, no estorba.
+        if (revocacionTokenService.estaRevocado(token)) {
+            request.setAttribute(TOKEN_REVOCADO_ATTR, Boolean.TRUE);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String email = jwtService.extraerEmail(token);
 
-        usuarioRepository.findByEmail(email).ifPresent(usuario -> {
-
-            String rol = usuario.getRol().getNombre();
-
-            System.out.println("ROL DEL USUARIO: " + rol);
-
-            var autoridad = new SimpleGrantedAuthority("ROLE_" + rol);
-
-            System.out.println("AUTORIDAD: " + autoridad.getAuthority());
+        // El rol se lee de la base en cada peticion, no del claim del token:
+        // asi un cambio de rol (HU9) aplica sin esperar a que el token expire.
+        usuarioApi.obtenerRolPorEmail(email).ifPresent(rol -> {
 
             var autenticacion = new UsernamePasswordAuthenticationToken(
-                    usuario.getEmail(),
+                    email,
                     null,
-                    List.of(autoridad)
+                    List.of(new SimpleGrantedAuthority("ROLE_" + rol))
             );
 
             SecurityContextHolder.getContext().setAuthentication(autenticacion);

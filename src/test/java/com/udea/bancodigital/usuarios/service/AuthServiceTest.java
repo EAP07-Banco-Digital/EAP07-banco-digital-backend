@@ -2,6 +2,7 @@ package com.udea.bancodigital.usuarios.service;
 
 import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.shared.jwt.JwtService;
+import com.udea.bancodigital.shared.jwt.RevocacionTokenService;
 import com.udea.bancodigital.usuarios.dto.LoginRequestDTO;
 import com.udea.bancodigital.usuarios.dto.LoginResponseDTO;
 import com.udea.bancodigital.usuarios.entity.Rol;
@@ -41,6 +42,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private RevocacionTokenService revocacionTokenService;
 
     @InjectMocks
     private AuthService authService;
@@ -139,5 +143,15 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, "Incorrecta1!")))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Credenciales invalidas");
+    }
+
+    @Test
+    void logoutRevocaElTokenRecibidoYConfirmaElCierre() {
+        String token = "jwt.ficticio.firmado";
+
+        assertThat(authService.logout(token).getMessage()).isEqualTo("Sesion cerrada correctamente");
+
+        verify(revocacionTokenService).revocar(token);
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
     }
 }

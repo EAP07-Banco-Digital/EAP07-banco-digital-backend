@@ -1,8 +1,10 @@
 package com.udea.bancodigital.usuarios.service;
 
 import com.udea.bancodigital.shared.jwt.JwtService;
+import com.udea.bancodigital.shared.jwt.RevocacionTokenService;
 import com.udea.bancodigital.usuarios.dto.LoginRequestDTO;
 import com.udea.bancodigital.usuarios.dto.LoginResponseDTO;
+import com.udea.bancodigital.usuarios.dto.LogoutResponseDTO;
 import com.udea.bancodigital.usuarios.entity.Usuario;
 import com.udea.bancodigital.usuarios.repository.UsuarioRepository;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -15,15 +17,18 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RevocacionTokenService revocacionTokenService;
 
     public AuthService(
             UsuarioRepository usuarioRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            RevocacionTokenService revocacionTokenService
     ) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.revocacionTokenService = revocacionTokenService;
     }
 
     public LoginResponseDTO login(LoginRequestDTO request) {
@@ -51,5 +56,12 @@ public class AuthService {
 
         // Devuelve el token y el tipo de autenticacion esperado por el frontend.
         return new LoginResponseDTO(token, "Bearer");
+    }
+
+    public LogoutResponseDTO logout(String token) {
+        // El token ya paso por el filtro JWT (la ruta es protegida), asi que es
+        // valido y no estaba revocado: basta con anotarlo en la lista negra.
+        revocacionTokenService.revocar(token);
+        return new LogoutResponseDTO("Sesion cerrada correctamente");
     }
 }

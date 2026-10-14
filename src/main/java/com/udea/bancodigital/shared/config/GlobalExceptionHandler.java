@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -59,6 +60,19 @@ public class GlobalExceptionHandler {
 
         return construirRespuesta(
                 HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", mensaje, detalles, request
+        );
+    }
+
+    // Un id de la URL que no es numerico (ej. PUT /api/usuarios/abc/rol) es un
+    // error del cliente, no un 500 del catch-all.
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> manejarParametroInvalido(
+            MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+
+        return construirRespuesta(
+                HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+                "El parametro '" + exception.getName() + "' no tiene un formato valido",
+                null, request
         );
     }
 

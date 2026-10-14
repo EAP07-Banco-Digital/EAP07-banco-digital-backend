@@ -3,12 +3,11 @@ package com.udea.bancodigital.shared.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
 import com.udea.bancodigital.shared.jwt.JwtService;
+import com.udea.bancodigital.shared.jwt.RevocacionTokenService;
 import com.udea.bancodigital.usuarios.controller.UsuarioController;
+import com.udea.bancodigital.usuarios.dto.CambioRolResponseDTO;
 import com.udea.bancodigital.usuarios.dto.PerfilUsuarioDTO;
 import com.udea.bancodigital.usuarios.dto.RegistroUsuarioResponseDTO;
-import com.udea.bancodigital.usuarios.entity.Rol;
-import com.udea.bancodigital.usuarios.entity.Usuario;
-import com.udea.bancodigital.usuarios.repository.UsuarioRepository;
 import com.udea.bancodigital.usuarios.service.UsuarioService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,9 +25,13 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,7 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * forma de verificar a quien deja pasar SecurityConfig y a quien no.
  */
 @WebMvcTest(UsuarioController.class)
-@Import({SecurityConfig.class, CustomAuthEntryPoint.class, JwtAuthenticationFilter.class, TraceIdFilter.class})
+@Import({SecurityConfig.class, PasswordConfig.class, CustomAuthEntryPoint.class, CustomAccessDeniedHandler.class,
+        JwtAuthenticationFilter.class, TraceIdFilter.class})
 class SecurityConfigTest {
 
     private static final String CORREO = "juan@banco.com";
@@ -56,20 +60,12 @@ class SecurityConfigTest {
     private JwtService jwtService;
 
     @MockitoBean
-    private UsuarioRepository usuarioRepository;
-
-    private Usuario usuarioConRol(String rol) {
-        Usuario usuario = new Usuario();
-        usuario.setId(1L);
-        usuario.setEmail(CORREO);
-        usuario.setRol(new Rol(1L, rol));
-        return usuario;
-    }
+    private RevocacionTokenService revocacionTokenService;
 
     private void tokenValidoDe(String rol) {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioConRol(rol)));
+        given(usuarioService.obtenerRolPorEmail(CORREO)).willReturn(Optional.of(rol));
     }
 
     private Map<String, String> registroValido() {
@@ -91,7 +87,7 @@ class SecurityConfigTest {
     void unEndpointProtegidoSinTokenDevuelve401ConElJsonUniforme() throws Exception {
         mockMvc.perform(get("/api/usuarios/me"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"))
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"))
                 .andExpect(jsonPath("$.message").value("Debes iniciar sesion para acceder a este recurso"))
                 .andExpect(content().string(not(containsString("traceId\":null"))));
     }
@@ -112,7 +108,7 @@ class SecurityConfigTest {
 
         mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer token.inventado"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test
@@ -131,11 +127,11 @@ class SecurityConfigTest {
     void unTokenDeUnUsuarioQueYaNoExisteTerminaEn401() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.empty());
+        given(usuarioService.obtenerRolPorEmail(CORREO)).willReturn(Optional.empty());
 
         mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test
@@ -147,16 +143,56 @@ class SecurityConfigTest {
     }
 
     @Test
-    void el403PorRolInsuficienteNoUsaElJsonUniforme() throws Exception {
-        // Documenta DEF-T-02: el rechazo por rol sale con la respuesta por defecto
-        // de Spring Security, sin {errorCode, message, details, traceId}.
+    void el403PorRolInsuficienteUsaElJsonUniformeConForbidden() throws Exception {
+        // Antes documentaba DEF-T-02 (403 sin cuerpo); la HU9 lo corrige con
+        // CustomAccessDeniedHandler.
         tokenValidoDe("ADMIN");
 
-        String cuerpo = mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
+        mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
                 .andExpect(status().isForbidden())
-                .andReturn().getResponse().getContentAsString();
+                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("No tienes permisos para realizar esta operacion"))
+                .andExpect(jsonPath("$.details").isEmpty())
+                .andExpect(jsonPath("$.traceId").isNotEmpty());
+    }
 
-        org.assertj.core.api.Assertions.assertThat(cuerpo).doesNotContain("errorCode");
+    @Test
+    void unClienteNoPuedeCambiarRolesYRecibe403Forbidden() throws Exception {
+        tokenValidoDe("CLIENTE");
+
+        mockMvc.perform(put("/api/usuarios/2/rol")
+                        .header("Authorization", "Bearer " + TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rol\":\"ADMIN\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
+
+        // El filtro si consulta el rol (UsuarioApi); lo que nunca debe correr es el cambio.
+        verify(usuarioService, never()).cambiarRol(any(), any(), any());
+    }
+
+    @Test
+    void unAdministradorSiPuedeLlegarAlCambioDeRol() throws Exception {
+        tokenValidoDe("ADMIN");
+        given(usuarioService.cambiarRol(eq(CORREO), eq(2L), any()))
+                .willReturn(new CambioRolResponseDTO("El rol del usuario fue actualizado.", 2L,
+                        "otro@banco.com", "ADMIN"));
+
+        mockMvc.perform(put("/api/usuarios/2/rol")
+                        .header("Authorization", "Bearer " + TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rol\":\"ADMIN\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rol").value("ADMIN"));
+    }
+
+    @Test
+    void elCambioDeRolSinTokenTerminaEn401() throws Exception {
+        mockMvc.perform(put("/api/usuarios/2/rol")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rol\":\"ADMIN\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test
@@ -186,6 +222,35 @@ class SecurityConfigTest {
         // permitAll exige token, aunque la ruta no exista.
         mockMvc.perform(get("/api/ruta-que-no-existe"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void unTokenRevocadoTerminaEn401ConTokenRevokedYElJsonUniforme() throws Exception {
+        tokenValidoDe("CLIENTE");
+        given(revocacionTokenService.estaRevocado(TOKEN)).willReturn(true);
+
+        mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("TOKEN_REVOKED"))
+                .andExpect(jsonPath("$.message").value("La sesion fue cerrada. Inicia sesion de nuevo"))
+                .andExpect(jsonPath("$.details").isEmpty())
+                .andExpect(jsonPath("$.traceId").isNotEmpty());
+    }
+
+    @Test
+    void unTokenRevocadoNoImpideUsarUnaRutaPublica() throws Exception {
+        // Un cliente que cerro sesion puede seguir mandando el header viejo
+        // por descuido: eso no debe romperle el registro ni el login.
+        given(jwtService.esTokenValido(TOKEN)).willReturn(true);
+        given(revocacionTokenService.estaRevocado(TOKEN)).willReturn(true);
+        given(usuarioService.registrar(any()))
+                .willReturn(new RegistroUsuarioResponseDTO("El usuario ha sido registrado con éxito.", 1L, CORREO));
+
+        mockMvc.perform(post("/api/usuarios/registro")
+                        .header("Authorization", "Bearer " + TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registroValido())))
+                .andExpect(status().isCreated());
     }
 }

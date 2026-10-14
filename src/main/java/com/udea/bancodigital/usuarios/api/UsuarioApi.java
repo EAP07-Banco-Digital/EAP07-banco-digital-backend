@@ -1,5 +1,7 @@
 package com.udea.bancodigital.usuarios.api;
 
+import java.util.Optional;
+
 /**
  * API pública del módulo de Usuarios.
  * <p>
@@ -17,4 +19,15 @@ public interface UsuarioApi {
      * @return el clienteId asociado
      */
     Long obtenerIdClientePorEmail(String email);
+
+    /**
+     * Obtiene el nombre del rol actual del usuario (ej. "CLIENTE", "ADMIN").
+     * <p>
+     * Lo usa el filtro JWT en cada petición: el rol se lee de la base y no del
+     * token, así un cambio de rol (HU9) aplica de inmediato.
+     *
+     * @param email email extraído del JWT
+     * @return el rol, o vacío si el usuario ya no existe
+     */
+    Optional<String> obtenerRolPorEmail(String email);
 }

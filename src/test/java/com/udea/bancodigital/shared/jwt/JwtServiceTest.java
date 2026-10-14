@@ -74,4 +74,22 @@ class JwtServiceTest {
         assertThat(servicio.extraerEmail(servicio.generarToken(CORREO, "CLIENTE"))).isEqualTo(CORREO);
         assertThat(servicio.extraerEmail(servicio.generarToken(CORREO, "CLIENTE"))).isEqualTo(CORREO);
     }
+
+    @Test
+    void laExpiracionDelTokenEsLaQueSeConfiguro() {
+        long antes = System.currentTimeMillis();
+        String token = servicio(3_600_000L).generarToken(CORREO, "CLIENTE");
+
+        // jjwt guarda la fecha en segundos: se tolera el redondeo.
+        assertThat(servicio(3_600_000L).extraerExpiracion(token).getTime())
+                .isBetween(antes + 3_600_000L - 1_000L, System.currentTimeMillis() + 3_600_000L);
+    }
+
+    @Test
+    void dosTokensDelMismoUsuarioEnElMismoSegundoSonDistintos() {
+        // Necesario para la revocacion (HU8): revocar uno no puede revocar el otro.
+        JwtService servicio = servicio(3_600_000L);
+
+        assertThat(servicio.generarToken(CORREO, "CLIENTE")).isNotEqualTo(servicio.generarToken(CORREO, "CLIENTE"));
+    }
 }

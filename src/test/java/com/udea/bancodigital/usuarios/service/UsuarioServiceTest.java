@@ -3,8 +3,11 @@ package com.udea.bancodigital.usuarios.service;
 import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.shared.repository.EstadoRepository;
 import com.udea.bancodigital.usuarios.dto.ActualizarPerfilRequestDTO;
+import com.udea.bancodigital.usuarios.dto.CambiarRolRequestDTO;
+import com.udea.bancodigital.usuarios.dto.CambioRolResponseDTO;
 import com.udea.bancodigital.usuarios.dto.MensajesPerfil;
 import com.udea.bancodigital.usuarios.dto.MensajesRegistro;
+import com.udea.bancodigital.usuarios.dto.MensajesRol;
 import com.udea.bancodigital.usuarios.dto.PerfilUsuarioDTO;
 import com.udea.bancodigital.usuarios.dto.RegistroUsuarioRequestDTO;
 import com.udea.bancodigital.usuarios.dto.RegistroUsuarioResponseDTO;
@@ -233,6 +236,40 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void registroConRolAdminFallaCon403YNoCreaNada() {
+        given(rolRepository.findByNombreIgnoreCase("ADMIN")).willReturn(Optional.of(new Rol(3L, "ADMIN")));
+
+        assertThatThrownBy(() -> {
+            RegistroUsuarioRequestDTO solicitud = solicitudValida();
+            solicitud.setRol("ADMIN");
+            usuarioService.registrar(solicitud);
+        })
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("ROLE_NOT_ALLOWED");
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRegistro.ROL_NO_PERMITIDO);
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                });
+
+        verifyNoInteractions(clienteRepository, estadoRepository);
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void registroConRolAdminEnMinusculasTambienSeRechaza() {
+        given(rolRepository.findByNombreIgnoreCase("admin")).willReturn(Optional.of(new Rol(3L, "ADMIN")));
+
+        assertThatThrownBy(() -> {
+            RegistroUsuarioRequestDTO solicitud = solicitudValida();
+            solicitud.setRol(" admin ");
+            usuarioService.registrar(solicitud);
+        })
+                .isInstanceOfSatisfying(NegocioException.class, excepcion ->
+                        assertThat(excepcion.getErrorCode()).isEqualTo("ROLE_NOT_ALLOWED"));
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
     void registroSinElEstadoActivoEnCatalogoFallaCon500() {
         given(rolRepository.findByNombreIgnoreCase("CLIENTE")).willReturn(Optional.of(new Rol(1L, "CLIENTE")));
         given(estadoRepository.findByNombreIgnoreCase("ACTIVO")).willReturn(Optional.empty());
@@ -386,5 +423,114 @@ class UsuarioServiceTest {
         assertThatThrownBy(() -> usuarioService.obtenerIdClientePorEmail("nadie@banco.com"))
                 .isInstanceOfSatisfying(NegocioException.class, excepcion ->
                         assertThat(excepcion.getErrorCode()).isEqualTo("USER_NOT_FOUND"));
+    }
+
+    @Test
+    void obtenerRolPorEmailDevuelveElNombreDelRolActual() {
+        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioPersistido()));
+
+        assertThat(usuarioService.obtenerRolPorEmail(CORREO)).contains("CLIENTE");
+    }
+
+    @Test
+    void obtenerRolPorEmailDeUnUsuarioInexistenteDevuelveVacioSinFallar() {
+        // El filtro JWT interpreta el vacio como "no autenticar" (401); una
+        // excepcion aqui se convertiria en un 500 en medio de la cadena de filtros.
+        given(usuarioRepository.findByEmail("nadie@banco.com")).willReturn(Optional.empty());
+
+        assertThat(usuarioService.obtenerRolPorEmail("nadie@banco.com")).isEmpty();
+    }
+
+    // -------------------------------------------------------------- cambio de rol
+
+    private static final Long ADMIN_ID = 99L;
+    private static final String CORREO_ADMIN = "admin@banco.com";
+
+    private Usuario administradorPersistido() {
+        Usuario admin = new Usuario();
+        admin.setId(ADMIN_ID);
+        admin.setEmail(CORREO_ADMIN);
+        admin.setRol(new Rol(2L, "ADMIN"));
+        return admin;
+    }
+
+    @Test
+    void cambiarRolAsignaElNuevoRolAlUsuarioYLoGuarda() {
+        Usuario usuario = usuarioPersistido();
+        given(usuarioRepository.findByEmail(CORREO_ADMIN)).willReturn(Optional.of(administradorPersistido()));
+        given(rolRepository.findByNombreIgnoreCase("ADMIN")).willReturn(Optional.of(new Rol(2L, "ADMIN")));
+        given(usuarioRepository.findById(USUARIO_ID)).willReturn(Optional.of(usuario));
+
+        CambioRolResponseDTO respuesta =
+                usuarioService.cambiarRol(CORREO_ADMIN, USUARIO_ID, new CambiarRolRequestDTO("ADMIN"));
+
+        ArgumentCaptor<Usuario> guardado = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarioRepository).save(guardado.capture());
+        assertThat(guardado.getValue().getRol().getNombre()).isEqualTo("ADMIN");
+
+        assertThat(respuesta.getMessage()).isEqualTo(MensajesRol.ROL_ACTUALIZADO);
+        assertThat(respuesta.getUsuarioId()).isEqualTo(USUARIO_ID);
+        assertThat(respuesta.getEmail()).isEqualTo(CORREO);
+        assertThat(respuesta.getRol()).isEqualTo("ADMIN");
+    }
+
+    @Test
+    void cambiarRolAceptaElNombreDelRolConEspaciosYEnMinusculas() {
+        given(usuarioRepository.findByEmail(CORREO_ADMIN)).willReturn(Optional.of(administradorPersistido()));
+        given(rolRepository.findByNombreIgnoreCase("admin")).willReturn(Optional.of(new Rol(2L, "ADMIN")));
+        given(usuarioRepository.findById(USUARIO_ID)).willReturn(Optional.of(usuarioPersistido()));
+
+        CambioRolResponseDTO respuesta =
+                usuarioService.cambiarRol(CORREO_ADMIN, USUARIO_ID, new CambiarRolRequestDTO("  admin "));
+
+        assertThat(respuesta.getRol()).isEqualTo("ADMIN");
+    }
+
+    @Test
+    void cambiarElPropioRolFallaCon400YNoTocaNada() {
+        given(usuarioRepository.findByEmail(CORREO_ADMIN)).willReturn(Optional.of(administradorPersistido()));
+
+        assertThatThrownBy(() ->
+                usuarioService.cambiarRol(CORREO_ADMIN, ADMIN_ID, new CambiarRolRequestDTO("CLIENTE")))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("SELF_ROLE_CHANGE_NOT_ALLOWED");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRol.CAMBIO_PROPIO_ROL);
+                });
+
+        verifyNoInteractions(rolRepository);
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void cambiarRolAUnRolInexistenteFallaCon400() {
+        given(usuarioRepository.findByEmail(CORREO_ADMIN)).willReturn(Optional.of(administradorPersistido()));
+        given(rolRepository.findByNombreIgnoreCase("SUPERUSUARIO")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                usuarioService.cambiarRol(CORREO_ADMIN, USUARIO_ID, new CambiarRolRequestDTO("SUPERUSUARIO")))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("INVALID_ROLE");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void cambiarRolDeUnUsuarioInexistenteFallaCon404() {
+        given(usuarioRepository.findByEmail(CORREO_ADMIN)).willReturn(Optional.of(administradorPersistido()));
+        given(rolRepository.findByNombreIgnoreCase("ADMIN")).willReturn(Optional.of(new Rol(2L, "ADMIN")));
+        given(usuarioRepository.findById(404L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                usuarioService.cambiarRol(CORREO_ADMIN, 404L, new CambiarRolRequestDTO("ADMIN")))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("USER_NOT_FOUND");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRol.USUARIO_NO_ENCONTRADO);
+                });
+
+        verify(usuarioRepository, never()).save(any());
     }
 }
