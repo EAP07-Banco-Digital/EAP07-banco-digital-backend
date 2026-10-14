@@ -118,9 +118,6 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void unTokenDeUnUsuarioQueYaNoExisteNoAutentica() throws Exception {
-        // El filtro relee el usuario en cada peticion, pero de el solo toma el
-        // rol: no consulta el estado, asi que desactivar a alguien no le quita el
-        // acceso hasta que su token expira (DEF-T-01).
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
         given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
         given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.empty());

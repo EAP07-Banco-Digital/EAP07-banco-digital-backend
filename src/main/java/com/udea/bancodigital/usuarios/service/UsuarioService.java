@@ -200,6 +200,7 @@ public class UsuarioService implements UsuarioApi {
     @Transactional(readOnly = true)
     public Optional<String> obtenerRolPorEmail(String email) {
         return usuarioRepository.findByEmail(email)
+                                .filter(Usuario::estaActivo)
                 .map(usuario -> usuario.getRol().getNombre());
     }
 

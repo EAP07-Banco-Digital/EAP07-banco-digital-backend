@@ -441,6 +441,15 @@ class UsuarioServiceTest {
         assertThat(usuarioService.obtenerRolPorEmail("nadie@banco.com")).isEmpty();
     }
 
+    @Test
+    void obtenerRolPorEmailDeUnUsuarioInactivoDevuelveVacio() {
+        Usuario usuario = usuarioPersistido();
+        usuario.setEstado(new Estado(2L, null, "INACTIVO"));
+        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+
+        assertThat(usuarioService.obtenerRolPorEmail(CORREO)).isEmpty();
+    }
+
     // -------------------------------------------------------------- cambio de rol
 
     private static final Long ADMIN_ID = 99L;

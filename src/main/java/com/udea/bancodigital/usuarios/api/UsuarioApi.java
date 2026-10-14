@@ -27,7 +27,7 @@ public interface UsuarioApi {
      * token, así un cambio de rol (HU9) aplica de inmediato.
      *
      * @param email email extraído del JWT
-     * @return el rol, o vacío si el usuario ya no existe
+    * @return el rol, o vacío si el usuario no existe o no está activo
      */
     Optional<String> obtenerRolPorEmail(String email);
 }

@@ -3,6 +3,8 @@ package com.udea.bancodigital.usuarios.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.udea.bancodigital.shared.config.CustomAccessDeniedHandler;
 import com.udea.bancodigital.shared.config.CustomAuthEntryPoint;
+import com.udea.bancodigital.shared.config.TraceIdFilter;
+import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
 import com.udea.bancodigital.usuarios.dto.LoginRequestDTO;
 import com.udea.bancodigital.usuarios.dto.LoginResponseDTO;
@@ -16,6 +18,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -27,6 +30,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -68,17 +72,18 @@ class AuthControllerTest {
 
     @Test
     void loginExitosoDevuelve200ConElTokenYTipoBearer() throws Exception {
-        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer"));
+        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer", "CLIENTE"));
 
         iniciarSesion(credencialesValidas())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("jwt.ficticio.firmado"))
-                .andExpect(jsonPath("$.tipo").value("Bearer"));
+            .andExpect(jsonPath("$.tipo").value("Bearer"))
+            .andExpect(jsonPath("$.rol").value("CLIENTE"));
     }
 
     @Test
     void laRespuestaDelLoginNoExponeElHashDeLaContrasena() throws Exception {
-        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer"));
+        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer", "CLIENTE"));
 
         iniciarSesion(credencialesValidas())
                 .andExpect(jsonPath("$.password").doesNotExist())
@@ -126,6 +131,23 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Credenciales invalidas"));
     }
 
+            @Test
+            void quintoIntentoFallidoDevuelve403ConErrorDeCuentaBloqueada() throws Exception {
+            willThrow(new NegocioException(
+                "ACCOUNT_LOCKED", "Cuenta temporalmente bloqueada", HttpStatus.FORBIDDEN
+            )).given(authService).login(any());
+
+            mockMvc.perform(post("/api/auth/login")
+                    .requestAttr(TraceIdFilter.TRACE_ID_ATTR, "trace-prueba")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(credencialesValidas())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCOUNT_LOCKED"))
+                .andExpect(jsonPath("$.message").value("Cuenta temporalmente bloqueada"))
+                .andExpect(jsonPath("$.details").value(nullValue()))
+                .andExpect(jsonPath("$.traceId").value("trace-prueba"));
+            }
+
     @Test
     void loginDeUnUsuarioInactivoDevuelve401() throws Exception {
         willThrow(new BadCredentialsException("El usuario no esta activo")).given(authService).login(any());
@@ -149,7 +171,7 @@ class AuthControllerTest {
 
     @Test
     void elServicioRecibeElCorreoYLaContrasenaTalComoVinieron() throws Exception {
-        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer"));
+        given(authService.login(any())).willReturn(new LoginResponseDTO("jwt.ficticio.firmado", "Bearer", "CLIENTE"));
 
         iniciarSesion(credencialesValidas());
 

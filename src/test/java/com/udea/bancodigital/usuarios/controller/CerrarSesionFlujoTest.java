@@ -86,7 +86,7 @@ class CerrarSesionFlujoTest {
         usuario.setPasswordHash(passwordEncoder.encode(CLAVE));
         usuario.setRol(new Rol(1L, "CLIENTE"));
         usuario.setEstado(new Estado(1L, null, "ACTIVO"));
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
         // El filtro JWT ya no lee el repositorio: pide el rol a UsuarioApi.
         given(usuarioService.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
 
@@ -182,7 +182,7 @@ class CerrarSesionFlujoTest {
         administrador.setPasswordHash(passwordEncoder.encode(CLAVE));
         administrador.setRol(new Rol(2L, "ADMIN"));
         administrador.setEstado(new Estado(1L, null, "ACTIVO"));
-        given(usuarioRepository.findByEmail(correoAdmin)).willReturn(Optional.of(administrador));
+        given(usuarioRepository.findByEmailForUpdate(correoAdmin)).willReturn(Optional.of(administrador));
         given(usuarioService.obtenerRolPorEmail(correoAdmin)).willReturn(Optional.of("ADMIN"));
 
         String cuerpo = mockMvc.perform(post("/api/auth/login")

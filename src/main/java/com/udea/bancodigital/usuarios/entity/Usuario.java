@@ -34,6 +34,15 @@ public class Usuario {
     @Column(name = "cliente_id")
     private Long clienteId;
 
+    @Column(name = "intentos_fallidos")
+    private Integer intentosFallidos = 0;
+
+    @Column(name = "primer_intento_fallido")
+    private OffsetDateTime primerIntentoFallido;
+
+    @Column(name = "bloqueado_hasta")
+    private OffsetDateTime bloqueadoHasta;
+
     @ManyToOne
     @JoinColumn(name = "rol_id", nullable = false)
     private Rol rol;
@@ -61,6 +70,12 @@ public class Usuario {
     @Override
     public int hashCode() {
         return getClass().hashCode();
+    }
+
+    // El usuario es el experto en su propio estado: la regla "esta activo"
+    // vive en un solo lugar y la comparten AuthService y el filtro JWT.
+    public boolean estaActivo() {
+        return estado != null && "ACTIVO".equalsIgnoreCase(estado.getNombre());
     }
 
     @Override
