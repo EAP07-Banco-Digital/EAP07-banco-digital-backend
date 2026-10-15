@@ -1,6 +1,5 @@
 package com.udea.bancodigital.cuentas.service;
 
-import com.udea.bancodigital.cuentas.api.CuentaApi;
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
 import com.udea.bancodigital.cuentas.dto.HistorialTransaccionResponse;
@@ -32,7 +31,7 @@ import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
-public class CuentaServiceImpl implements CuentaService, CuentaApi {
+public class CuentaServiceImpl implements CuentaService {
 
     private final CuentaRepository cuentaRepository;
     private final TipoCuentaRepository tipoCuentaRepository;
@@ -357,39 +356,6 @@ public class CuentaServiceImpl implements CuentaService, CuentaApi {
         });
     }
 
-    // --- Métodos de la CuentaApi (para comunicación entre módulos) ---
-
-    @Override
-    @Transactional(readOnly = true)
-    public CuentaInfo obtenerInfoPorNumeroCuenta(String numeroCuenta) {
-        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
-                .orElseThrow(() -> new NegocioException(
-                        "DESTINATION_ACCOUNT_NOT_FOUND",
-                        "La cuenta " + numeroCuenta + " no existe",
-                        HttpStatus.NOT_FOUND
-                ));
-
-        return new CuentaInfo(
-                cuenta.getId(),
-                cuenta.getClienteId(),
-                cuenta.getNumeroCuenta(),
-                cuenta.getSaldoDisponible(),
-                cuenta.getEstado().getNombre()
-        );
-    }
-
-    @Override
-    @Transactional
-    public void actualizarSaldo(Long cuentaId, BigDecimal nuevoSaldo) {
-        Cuenta cuenta = cuentaRepository.findById(cuentaId)
-                .orElseThrow(() -> new NegocioException(
-                        "INTERNAL_ERROR",
-                        "Cuenta " + cuentaId + " no encontrada al actualizar saldo",
-                        HttpStatus.INTERNAL_SERVER_ERROR
-                ));
-        cuenta.setSaldoDisponible(nuevoSaldo);
-        cuentaRepository.save(cuenta);
-    }
 
     private String generarNumeroCuentaUnico() {
         Random random = new Random();
