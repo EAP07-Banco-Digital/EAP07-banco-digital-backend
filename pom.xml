@@ -39,7 +39,7 @@
 			y esa prueba entra tambien:  ./mvnw -Pintegracion test
 		-->
 		<excluded.test.groups>integracion</excluded.test.groups>
-		<sonar.organization>andruw159</sonar.organization>
+		<sonar.organization>eap07-banco-digital</sonar.organization>
 	</properties>
 	<dependencies>
 		<dependency>
