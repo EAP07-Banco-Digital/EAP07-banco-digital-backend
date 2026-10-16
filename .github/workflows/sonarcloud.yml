@@ -36,5 +36,5 @@ jobs:
         run: >
           mvn -B verify
           org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-          -Dsonar.projectKey=andruw159_EAP07-banco-digital-backend
-          -Dsonar.organization=andruw159
+          -Dsonar.projectKey=EAP07-Banco-Digital_EAP07-banco-digital-backend
+          -Dsonar.organization=eap07-banco-digital
