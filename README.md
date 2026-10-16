@@ -1,4 +1,4 @@
-# EAP07-banco-digital-backend
+# EAP07-banco-digital-backend https://sonarcloud.io/api/project_badges/measure?project=EAP07-Banco-Digital_EAP07-banco-digital-backend&metric=alert_status
 Fábrica escuela 2026-2
 
 ## Cómo levantar el proyecto localmente
