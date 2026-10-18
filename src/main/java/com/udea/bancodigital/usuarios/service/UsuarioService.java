@@ -48,7 +48,7 @@ public class UsuarioService implements UsuarioApi {
     @Transactional
     public RegistroUsuarioResponseDTO registrar(RegistroUsuarioRequestDTO request) {
 
-        String email = request.getEmail().trim();
+        String email = Correos.normalizar(request.getEmail());
 
         if (usuarioRepository.existsByEmailIgnoreCase(email)) {
             throw new NegocioException(
@@ -127,7 +127,7 @@ public class UsuarioService implements UsuarioApi {
         Usuario usuario = buscarPorEmail(emailAutenticado);
         Cliente cliente = buscarClienteDe(usuario);
 
-        String nuevoEmail = request.getEmail().trim();
+        String nuevoEmail = Correos.normalizar(request.getEmail());
         if (usuarioRepository.existsByEmailIgnoreCaseAndIdNot(nuevoEmail, usuario.getId())) {
             throw new NegocioException(
                     "DUPLICATE_EMAIL",

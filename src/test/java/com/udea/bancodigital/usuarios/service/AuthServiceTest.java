@@ -76,6 +76,17 @@ class AuthServiceTest {
     }
 
     @Test
+    void loginEncuentraAlUsuarioAunqueEscribaElCorreoConMayusculasYEspacios() {
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
+        given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
+        given(jwtService.generarToken(1L, "CLIENTE")).willReturn("jwt.ficticio.firmado");
+
+        LoginResponseDTO respuesta = authService.login(new LoginRequestDTO(" Juan@Banco.COM ", CLAVE));
+
+        assertThat(respuesta.getToken()).isEqualTo("jwt.ficticio.firmado");
+    }
+
+    @Test
     void loginExitosoFirmaElTokenConElRolDelUsuario() {
         Usuario usuario = usuarioConEstado("ACTIVO");
         usuario.setRol(new Rol(2L, "ADMIN"));

@@ -204,6 +204,31 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void registroGuardaElCorreoEnMinusculas() {
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setEmail("Juan@Banco.COM");
+
+        given(rolRepository.findByNombreIgnoreCase("CLIENTE")).willReturn(Optional.of(new Rol(1L, "CLIENTE")));
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVO")).willReturn(Optional.of(new Estado(1L, null, "ACTIVO")));
+        given(passwordEncoder.encode(anyString())).willReturn(HASH);
+        ArgumentCaptor<Cliente> cliente = ArgumentCaptor.forClass(Cliente.class);
+        given(clienteRepository.save(cliente.capture())).willAnswer(inv -> {
+            Cliente guardado = inv.getArgument(0);
+            guardado.setId(CLIENTE_ID);
+            return guardado;
+        });
+        ArgumentCaptor<Usuario> usuario = ArgumentCaptor.forClass(Usuario.class);
+        given(usuarioRepository.save(usuario.capture())).willReturn(usuarioPersistido());
+
+        usuarioService.registrar(solicitud);
+
+        // El login busca el correo exacto: si aqui quedara con mayusculas, el
+        // usuario no podria entrar escribiendolo en minusculas.
+        assertThat(usuario.getValue().getEmail()).isEqualTo(CORREO);
+        assertThat(cliente.getValue().getEmail()).isEqualTo(CORREO);
+    }
+
+    @Test
     void registroConCorreoDuplicadoFallaYNoEscribeNada() {
         given(usuarioRepository.existsByEmailIgnoreCase(CORREO)).willReturn(true);
 
@@ -364,6 +389,22 @@ class UsuarioServiceTest {
         assertThat(cliente.getValue().getTelefono()).isEqualTo("3009999999");
         assertThat(cliente.getValue().getDireccion()).isEqualTo("Calle 10");
         verify(usuarioRepository).existsByEmailIgnoreCaseAndIdNot(CORREO, USUARIO_ID);
+    }
+
+    @Test
+    void actualizarPerfilGuardaElCorreoNuevoEnMinusculasEnLasDosTablas() {
+        Usuario usuario = usuarioPersistido();
+        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+        given(clienteRepository.findById(CLIENTE_ID)).willReturn(Optional.of(clientePersistido()));
+
+        usuarioService.actualizarPerfil(
+                CORREO, new ActualizarPerfilRequestDTO("3009999999", "Juan.Nuevo@Banco.com", "Calle 10", null));
+
+        ArgumentCaptor<Cliente> cliente = ArgumentCaptor.forClass(Cliente.class);
+        verify(clienteRepository).save(cliente.capture());
+        assertThat(usuario.getEmail()).isEqualTo("juan.nuevo@banco.com");
+        assertThat(cliente.getValue().getEmail()).isEqualTo("juan.nuevo@banco.com");
+        verify(usuarioRepository).existsByEmailIgnoreCaseAndIdNot("juan.nuevo@banco.com", USUARIO_ID);
     }
 
     @Test

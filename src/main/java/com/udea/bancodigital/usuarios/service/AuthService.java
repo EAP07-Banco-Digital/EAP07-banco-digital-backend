@@ -43,8 +43,9 @@ public class AuthService {
     @Transactional(noRollbackFor = {BadCredentialsException.class, NegocioException.class})
     public LoginResponseDTO login(LoginRequestDTO request) {
 
-        // Busca el usuario utilizando el email recibido en la solicitud.
-        Usuario usuario = usuarioRepository.findByEmailForUpdate(request.getEmail())
+        // Busca el usuario utilizando el email recibido en la solicitud, normalizado
+        // igual que al registrarlo: "Juan@Banco.com" y "juan@banco.com" son el mismo.
+        Usuario usuario = usuarioRepository.findByEmailForUpdate(Correos.normalizar(request.getEmail()))
                 .orElseThrow(() -> new BadCredentialsException("Credenciales invalidas"));
 
         OffsetDateTime ahora = OffsetDateTime.now();
