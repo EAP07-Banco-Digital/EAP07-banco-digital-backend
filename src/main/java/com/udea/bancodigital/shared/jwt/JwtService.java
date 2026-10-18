@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtService {
@@ -28,6 +29,10 @@ public class JwtService {
 
     public String generarToken(String email, String rol) {
         return Jwts.builder()
+                // Identificador unico (jti): sin el, dos logins del mismo usuario
+                // en el mismo segundo producen el mismo token, y cerrar una
+                // sesion revocaria tambien la otra.
+                .id(UUID.randomUUID().toString())
                 .subject(email)
                 .claim("rol", rol)
                 .issuedAt(new Date())
@@ -43,6 +48,15 @@ public class JwtService {
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
+    }
+
+    public Date extraerExpiracion(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration();
     }
 
     public boolean esTokenValido(String token) {

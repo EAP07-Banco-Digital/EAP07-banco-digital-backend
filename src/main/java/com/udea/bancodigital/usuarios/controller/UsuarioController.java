@@ -1,6 +1,8 @@
 package com.udea.bancodigital.usuarios.controller;
 
 import com.udea.bancodigital.usuarios.dto.ActualizarPerfilRequestDTO;
+import com.udea.bancodigital.usuarios.dto.CambiarRolRequestDTO;
+import com.udea.bancodigital.usuarios.dto.CambioRolResponseDTO;
 import com.udea.bancodigital.usuarios.dto.PerfilUsuarioDTO;
 import com.udea.bancodigital.usuarios.dto.RegistroUsuarioRequestDTO;
 import com.udea.bancodigital.usuarios.dto.RegistroUsuarioResponseDTO;
@@ -39,6 +41,8 @@ public class UsuarioController {
                     content = @Content(schema = @Schema(implementation = RegistroUsuarioResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos (campos requeridos faltantes o formato incorrecto).",
                     content = @Content),
+            @ApiResponse(responseCode = "403", description = "Se pidió un rol distinto de CLIENTE (ROLE_NOT_ALLOWED); "
+                    + "los demás roles solo los asigna un administrador.", content = @Content),
             @ApiResponse(responseCode = "409", description = "El email ya está registrado en el sistema.",
                     content = @Content)
     })
@@ -82,6 +86,30 @@ public class UsuarioController {
             Principal principal, @Valid @RequestBody ActualizarPerfilRequestDTO request) {
 
         return usuarioService.actualizarPerfil(principal.getName(), request);
+    }
+
+    @Operation(
+            summary = "Cambiar el rol de un usuario",
+            description = "Asigna un nuevo rol al usuario indicado. Solo disponible para administradores; "
+                    + "un administrador no puede modificar su propio rol."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Rol actualizado exitosamente.",
+                    content = @Content(schema = @Schema(implementation = CambioRolResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Rol inválido o intento de modificar el propio rol "
+                    + "(SELF_ROLE_CHANGE_NOT_ALLOWED).", content = @Content),
+            @ApiResponse(responseCode = "401", description = "No autenticado. Se requiere token JWT.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "El usuario autenticado no es administrador (FORBIDDEN).",
+                    content = @Content),
+            @ApiResponse(responseCode = "404", description = "El usuario indicado no existe.", content = @Content)
+    })
+    // La restriccion a ADMIN vive en SecurityConfig; aqui el token solo aporta
+    // quien hace el cambio, para impedir que se lo haga a si mismo.
+    @PutMapping("/{id}/rol")
+    public CambioRolResponseDTO cambiarRol(
+            Principal principal, @PathVariable Long id, @Valid @RequestBody CambiarRolRequestDTO request) {
+
+        return usuarioService.cambiarRol(principal.getName(), id, request);
     }
 
     @Operation(summary = "Verificar autenticación", description = "Endpoint de prueba para verificar que el token JWT es válido.")

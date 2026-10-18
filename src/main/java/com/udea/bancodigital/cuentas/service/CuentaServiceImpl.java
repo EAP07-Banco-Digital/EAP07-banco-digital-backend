@@ -11,6 +11,7 @@ import com.udea.bancodigital.cuentas.entity.TipoCuenta;
 import com.udea.bancodigital.cuentas.repository.CuentaRepository;
 import com.udea.bancodigital.shared.repository.EstadoRepository;
 import com.udea.bancodigital.cuentas.repository.TipoCuentaRepository;
+import com.udea.bancodigital.shared.exception.CodigosError;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +43,7 @@ public class CuentaServiceImpl implements CuentaService {
     @Transactional
     public CuentaResponse solicitarAperturaCuenta(Long clienteId, AperturaCuentaRequest request) {
         if (clienteId == null) {
-            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+            throw new NegocioException(CodigosError.UNAUTHORIZED, "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
         }
 
         String tipoNombre = request.getTipoCuenta().toUpperCase().trim();
@@ -95,7 +96,7 @@ public class CuentaServiceImpl implements CuentaService {
     @Transactional(readOnly = true)
     public CuentaResponse consultarSaldo(Long clienteId, String numeroCuenta) {
         if (clienteId == null) {
-            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+            throw new NegocioException(CodigosError.UNAUTHORIZED, "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
         }
 
         // 1. Buscar cuenta o retornar 404
