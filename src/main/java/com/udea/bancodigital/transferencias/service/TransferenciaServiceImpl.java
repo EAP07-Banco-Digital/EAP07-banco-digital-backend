@@ -43,8 +43,22 @@ public class TransferenciaServiceImpl implements TransferenciaService {
             );
         }
 
-        // 1. Obtener informacion de las cuentas desde el modulo de Cuentas
-        CuentaApi.CuentaInfo cuentaOrigen = cuentaApi.obtenerInfoPorNumeroCuenta(request.getNumeroCuentaOrigen());
+        // 1. Bloquear las dos cuentas antes de leer sus saldos. Sin el bloqueo, dos
+        // transferencias simultaneas desde la misma cuenta leen el mismo saldo y
+        // las dos pasan la validacion de fondos (doble gasto). Se bloquean siempre
+        // en el mismo orden (por numero de cuenta): si A->B y B->A llegaran a la
+        // vez y cada una bloqueara primero su origen, se esperarian para siempre.
+        String numeroOrigen = request.getNumeroCuentaOrigen();
+        String numeroDestino = request.getNumeroCuentaDestino();
+        CuentaApi.CuentaInfo cuentaOrigen;
+        CuentaApi.CuentaInfo cuentaDestino;
+        if (numeroOrigen.compareTo(numeroDestino) < 0) {
+            cuentaOrigen = cuentaApi.bloquearPorNumeroCuenta(numeroOrigen);
+            cuentaDestino = cuentaApi.bloquearPorNumeroCuenta(numeroDestino);
+        } else {
+            cuentaDestino = cuentaApi.bloquearPorNumeroCuenta(numeroDestino);
+            cuentaOrigen = cuentaApi.bloquearPorNumeroCuenta(numeroOrigen);
+        }
 
         // Verificar que la cuenta origen pertenezca al cliente autenticado
         if (!cuentaOrigen.clienteId().equals(clienteId)) {
@@ -54,8 +68,6 @@ public class TransferenciaServiceImpl implements TransferenciaService {
                     HttpStatus.FORBIDDEN
             );
         }
-
-        CuentaApi.CuentaInfo cuentaDestino = cuentaApi.obtenerInfoPorNumeroCuenta(request.getNumeroCuentaDestino());
 
         // 2. Validar estados (Ambas deben estar ACTIVAS)
         if (!"ACTIVA".equalsIgnoreCase(cuentaOrigen.estadoNombre())) {
@@ -83,7 +95,7 @@ public class TransferenciaServiceImpl implements TransferenciaService {
             );
         }
 
-        // 4. Actualizar saldos a traves del API de Cuentas
+        // 4. Actualizar saldos a traves del API de Cuentas (las filas siguen bloqueadas)
         BigDecimal nuevoSaldoOrigen = cuentaOrigen.saldoDisponible().subtract(request.getMonto());
         BigDecimal nuevoSaldoDestino = cuentaDestino.saldoDisponible().add(request.getMonto());
 

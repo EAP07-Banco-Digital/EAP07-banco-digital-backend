@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -65,9 +66,9 @@ class TransferenciaServiceImplTest {
     }
 
     private void cuentasListasParaTransferir() {
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_DESTINO))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
                 .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
                 .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
@@ -117,6 +118,44 @@ class TransferenciaServiceImplTest {
     }
 
     @Test
+    void transferenciaLeeLasDosCuentasConBloqueoYNuncaSinEl() {
+        cuentasListasParaTransferir();
+        saldoActualizadoEnLasDosCuentas();
+
+        transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud());
+
+        // Una lectura sin bloqueo dejaria pasar dos transferencias simultaneas
+        // con el mismo saldo (doble gasto).
+        verify(cuentaApi).bloquearPorNumeroCuenta(NUMERO_ORIGEN);
+        verify(cuentaApi).bloquearPorNumeroCuenta(NUMERO_DESTINO);
+        verify(cuentaApi, never()).obtenerInfoPorNumeroCuenta(anyString());
+    }
+
+    @Test
+    void lasCuentasSeBloqueanEnOrdenDeNumeroAunqueElOrigenSeaElMayor() {
+        // A->B y B->A a la vez: si cada una bloqueara primero su origen, se
+        // esperarian mutuamente. Con un orden fijo, la segunda solo espera.
+        TransferenciaRequest request = solicitud();
+        request.setNumeroCuentaOrigen(NUMERO_DESTINO);
+        request.setNumeroCuentaDestino(NUMERO_ORIGEN);
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
+                .willReturn(info(CUENTA_DESTINO, CLIENTE_ID, NUMERO_DESTINO, "500000.00", "ACTIVA"));
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
+                .willReturn(info(CUENTA_ORIGEN, 99L, NUMERO_ORIGEN, "150000.00", "ACTIVA"));
+        given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
+                .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
+        saldoActualizadoEnLasDosCuentas();
+
+        transferenciaService.realizarTransferencia(CLIENTE_ID, request);
+
+        var orden = inOrder(cuentaApi);
+        orden.verify(cuentaApi).bloquearPorNumeroCuenta(NUMERO_ORIGEN);
+        orden.verify(cuentaApi).bloquearPorNumeroCuenta(NUMERO_DESTINO);
+        verify(cuentaApi).actualizarSaldo(CUENTA_DESTINO, new BigDecimal("400000.00"));
+        verify(cuentaApi).actualizarSaldo(CUENTA_ORIGEN, new BigDecimal("250000.00"));
+    }
+
+    @Test
     void transferenciaAJuntoLaMismaCuentaFallaCon400() {
         TransferenciaRequest request = solicitud();
         request.setNumeroCuentaDestino(NUMERO_ORIGEN);
@@ -132,7 +171,7 @@ class TransferenciaServiceImplTest {
 
     @Test
     void transferenciaDesdeUnaCuentaAjenaFallaCon403() {
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, 99L, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
@@ -148,7 +187,7 @@ class TransferenciaServiceImplTest {
 
     @Test
     void transferenciaDesdeUnaCuentaBloqueadaFallaCon409() {
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "BLOQUEADA"));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
@@ -162,9 +201,9 @@ class TransferenciaServiceImplTest {
 
     @Test
     void transferenciaHaciaUnaCuentaBloqueadaFallaCon409() {
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_DESTINO))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
                 .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "BLOQUEADA"));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
@@ -178,9 +217,9 @@ class TransferenciaServiceImplTest {
 
     @Test
     void transferenciaSinSaldoSuficienteFallaCon400YTocaNingunSaldo() {
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "50000.00", "ACTIVA"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_DESTINO))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
                 .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
@@ -199,9 +238,9 @@ class TransferenciaServiceImplTest {
         // Frontera de la regla de fondos: saldo == monto, no saldo < monto.
         TransferenciaRequest request = solicitud();
         request.setMonto(new BigDecimal("500000.00"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_DESTINO))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
                 .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
                 .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
@@ -217,9 +256,9 @@ class TransferenciaServiceImplTest {
     void transferenciaDescuentaElMontoExactoConDecimales() {
         TransferenciaRequest request = solicitud();
         request.setMonto(new BigDecimal("100.555"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "1000.00", "ACTIVA"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_DESTINO))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
                 .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "0.00", "ACTIVA"));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
                 .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
@@ -245,9 +284,9 @@ class TransferenciaServiceImplTest {
 
     @Test
     void transferenciaHaciaUnaCuentaInexistentePropagaElErrorYTocaNingunSaldo() {
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_DESTINO))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
                 .willThrow(new NegocioException("DESTINATION_ACCOUNT_NOT_FOUND",
                         "La cuenta " + NUMERO_DESTINO + " no existe", HttpStatus.NOT_FOUND));
 
@@ -265,9 +304,9 @@ class TransferenciaServiceImplTest {
         // El guardado de la transaccion es el ultimo paso: si falla, los saldos
         // ya se habian escrito. Lo que los revierte es el @Transactional del
         // metodo, no esta logica: aqui solo se constata el orden de las operaciones.
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_ORIGEN))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
                 .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
-        given(cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO_DESTINO))
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
                 .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA")).willReturn(Optional.empty());
 
