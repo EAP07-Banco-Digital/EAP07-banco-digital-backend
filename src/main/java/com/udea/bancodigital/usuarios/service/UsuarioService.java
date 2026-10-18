@@ -56,7 +56,7 @@ public class UsuarioService implements UsuarioApi {
         if (request.getPassword().getBytes(StandardCharsets.UTF_8).length > MAX_BYTES_PASSWORD) {
             throw new NegocioException(
                     "VALIDATION_ERROR",
-                    MensajesRegistro.PASSWORD_DEMASIADO_LARGA,
+                    MensajesRegistro.CONTRASENA_DEMASIADO_LARGA,
                     HttpStatus.BAD_REQUEST
             );
         }

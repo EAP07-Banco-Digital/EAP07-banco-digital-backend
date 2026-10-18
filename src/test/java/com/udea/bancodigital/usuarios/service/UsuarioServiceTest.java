@@ -253,7 +253,7 @@ class UsuarioServiceTest {
         assertThatThrownBy(() -> usuarioService.registrar(solicitud))
                 .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
                     assertThat(excepcion.getErrorCode()).isEqualTo("VALIDATION_ERROR");
-                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRegistro.PASSWORD_DEMASIADO_LARGA);
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRegistro.CONTRASENA_DEMASIADO_LARGA);
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                 });
 
