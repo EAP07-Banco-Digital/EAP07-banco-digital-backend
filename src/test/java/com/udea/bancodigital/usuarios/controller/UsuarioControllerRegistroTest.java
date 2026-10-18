@@ -187,4 +187,38 @@ class UsuarioControllerRegistroTest {
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.message").value(MensajesRegistro.CAMPO_DEMASIADO_LARGO));
     }
+
+    // ------------------------------------------------- fecha de nacimiento
+
+    @Test
+    void unaFechaDeNacimientoFuturaDevuelve400() throws Exception {
+        Map<String, String> cuerpo = peticionValida();
+        cuerpo.put("fechaNacimiento", java.time.LocalDate.now().plusDays(1).toString());
+
+        registrar(cuerpo)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value(MensajesRegistro.FECHA_NACIMIENTO_INVALIDA))
+                .andExpect(jsonPath("$.details.fechaNacimiento").value(MensajesRegistro.FECHA_NACIMIENTO_INVALIDA));
+    }
+
+    @Test
+    void laFechaDeHoyComoNacimientoTambienDevuelve400() throws Exception {
+        Map<String, String> cuerpo = peticionValida();
+        cuerpo.put("fechaNacimiento", java.time.LocalDate.now().toString());
+
+        registrar(cuerpo)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(MensajesRegistro.FECHA_NACIMIENTO_INVALIDA));
+    }
+
+    @Test
+    void laFechaDeAyerComoNacimientoSeAcepta() throws Exception {
+        given(usuarioService.registrar(any()))
+                .willReturn(new RegistroUsuarioResponseDTO(MensajesRegistro.REGISTRO_EXITOSO, 1L, "juan@banco.com"));
+        Map<String, String> cuerpo = peticionValida();
+        cuerpo.put("fechaNacimiento", java.time.LocalDate.now().minusDays(1).toString());
+
+        registrar(cuerpo).andExpect(status().isCreated());
+    }
 }

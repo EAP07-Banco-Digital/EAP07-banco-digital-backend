@@ -3,6 +3,7 @@ package com.udea.bancodigital.usuarios.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -35,7 +36,10 @@ public class RegistroUsuarioRequestDTO {
     @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String email;
 
+    // @Past rechaza fechas futuras y tambien la de hoy: nadie nace el dia en
+    // que se registra en el banco.
     @NotNull(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
+    @Past(message = MensajesRegistro.FECHA_NACIMIENTO_INVALIDA)
     private LocalDate fechaNacimiento;
 
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
