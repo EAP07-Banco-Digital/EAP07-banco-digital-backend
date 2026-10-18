@@ -8,6 +8,10 @@ import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 
 @Entity
+// Una persona se registra una sola vez: la base ya tiene la restriccion
+// uq_clientes_documento (tipo_documento, numero_documento). No se declara aqui
+// a proposito: con ddl-auto=update, Hibernate la borraria y recrearia en cada
+// arranque sobre la base compartida. UsuarioService valida el documento antes.
 @Table(name = "clientes")
 @Data
 @NoArgsConstructor

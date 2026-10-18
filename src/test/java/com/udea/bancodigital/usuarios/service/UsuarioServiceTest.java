@@ -244,6 +244,47 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void registroConDocumentoYaRegistradoFallaCon409YNoEscribeNada() {
+        given(clienteRepository.existsByTipoDocumentoAndNumeroDocumento("CC", "1017654321")).willReturn(true);
+
+        assertThatThrownBy(() -> usuarioService.registrar(solicitudValida()))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("DOCUMENT_ALREADY_REGISTERED");
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRegistro.DOCUMENTO_DUPLICADO);
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                });
+
+        verify(clienteRepository, never()).save(any(Cliente.class));
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void registroNormalizaElDocumentoAntesDeBuscarloYDeGuardarlo() {
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setTipoDocumento(" cc ");
+        solicitud.setNumeroDocumento(" 1017654321 ");
+
+        given(rolRepository.findByNombreIgnoreCase("CLIENTE")).willReturn(Optional.of(new Rol(1L, "CLIENTE")));
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVO")).willReturn(Optional.of(new Estado(1L, null, "ACTIVO")));
+        given(passwordEncoder.encode(anyString())).willReturn(HASH);
+        ArgumentCaptor<Cliente> cliente = ArgumentCaptor.forClass(Cliente.class);
+        given(clienteRepository.save(cliente.capture())).willAnswer(inv -> {
+            Cliente guardado = inv.getArgument(0);
+            guardado.setId(CLIENTE_ID);
+            return guardado;
+        });
+        given(usuarioRepository.save(any(Usuario.class))).willReturn(usuarioPersistido());
+
+        usuarioService.registrar(solicitud);
+
+        // Sin normalizar, " cc " pasaria la validacion aunque "CC" ya existiera.
+        verify(clienteRepository).existsByTipoDocumentoAndNumeroDocumento("CC", "1017654321");
+        assertThat(cliente.getValue().getTipoDocumento()).isEqualTo("CC");
+        assertThat(cliente.getValue().getNumeroDocumento()).isEqualTo("1017654321");
+    }
+
+    @Test
     void registroConRolInexistenteFallaCon400() {
         given(rolRepository.findByNombreIgnoreCase("PAGADOR")).willReturn(Optional.empty());
 
@@ -258,7 +299,8 @@ class UsuarioServiceTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                 });
 
-        verifyNoInteractions(clienteRepository, estadoRepository);
+        verifyNoInteractions(estadoRepository);
+        verify(clienteRepository, never()).save(any(Cliente.class));
     }
 
     @Test
@@ -276,7 +318,8 @@ class UsuarioServiceTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
                 });
 
-        verifyNoInteractions(clienteRepository, estadoRepository);
+        verifyNoInteractions(estadoRepository);
+        verify(clienteRepository, never()).save(any(Cliente.class));
         verify(usuarioRepository, never()).save(any());
     }
 
@@ -307,7 +350,7 @@ class UsuarioServiceTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
                 });
 
-        verifyNoInteractions(clienteRepository);
+        verify(clienteRepository, never()).save(any(Cliente.class));
     }
 
     // ------------------------------------------------------- consulta de perfil

@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import java.util.Optional;
 
 @Service
@@ -54,6 +55,17 @@ public class UsuarioService implements UsuarioApi {
             throw new NegocioException(
                     "EMAIL_ALREADY_REGISTERED",
                     MensajesRegistro.CORREO_DUPLICADO,
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        // Normalizado igual que se guarda: "cc" y "CC " son el mismo tipo de documento.
+        String tipoDocumento = request.getTipoDocumento().trim().toUpperCase(Locale.ROOT);
+        String numeroDocumento = request.getNumeroDocumento().trim();
+        if (clienteRepository.existsByTipoDocumentoAndNumeroDocumento(tipoDocumento, numeroDocumento)) {
+            throw new NegocioException(
+                    "DOCUMENT_ALREADY_REGISTERED",
+                    MensajesRegistro.DOCUMENTO_DUPLICADO,
                     HttpStatus.CONFLICT
             );
         }
@@ -86,6 +98,8 @@ public class UsuarioService implements UsuarioApi {
 
         Cliente cliente = clienteMapper.toEntity(request);
         cliente.setEmail(email);
+        cliente.setTipoDocumento(tipoDocumento);
+        cliente.setNumeroDocumento(numeroDocumento);
         cliente.setFechaRegistro(ahora);
         Cliente clienteGuardado = clienteRepository.save(cliente);
 
