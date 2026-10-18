@@ -21,6 +21,8 @@ import java.time.OffsetDateTime;
 @RequiredArgsConstructor
 public class TransferenciaServiceImpl implements TransferenciaService {
 
+    private static final String ESTADO_EXITOSA = "EXITOSA";
+
     private final TransaccionRepository transaccionRepository;
     private final TipoTransaccionRepository tipoTransaccionRepository;
 
@@ -115,6 +117,7 @@ public class TransferenciaServiceImpl implements TransferenciaService {
                 .cuentaDestinoId(cuentaDestino.id())
                 .tipoTransaccion(tipoTransferencia)
                 .monto(request.getMonto())
+                .estado(ESTADO_EXITOSA)
                 .descripcion(request.getDescripcion())
                 .fechaHora(OffsetDateTime.now())
                 .build();
@@ -127,7 +130,7 @@ public class TransferenciaServiceImpl implements TransferenciaService {
                 .numeroCuentaOrigen(cuentaOrigen.numeroCuenta())
                 .numeroCuentaDestino(cuentaDestino.numeroCuenta())
                 .monto(guardada.getMonto())
-                .estado("EXITOSA")
+                .estado(guardada.getEstado())
                 .fechaHora(guardada.getFechaHora())
                 .build();
     }

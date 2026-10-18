@@ -115,6 +115,8 @@ class TransferenciaServiceImplTest {
         assertThat(transaccion.getValue().getTipoTransaccion().getNombre()).isEqualTo("TRANSFERENCIA");
         assertThat(transaccion.getValue().getMonto()).isEqualByComparingTo(MONTO);
         assertThat(transaccion.getValue().getDescripcion()).isEqualTo("Pago de prueba");
+        // La columna estado es NOT NULL en la base: sin ella el INSERT falla.
+        assertThat(transaccion.getValue().getEstado()).isEqualTo("EXITOSA");
     }
 
     @Test
