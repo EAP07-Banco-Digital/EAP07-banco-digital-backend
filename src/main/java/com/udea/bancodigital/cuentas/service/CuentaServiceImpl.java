@@ -18,12 +18,18 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
 public class CuentaServiceImpl implements CuentaService, CuentaApi {
+
+    // SecureRandom y no Random: con Random, conocer unos pocos numeros de cuenta
+    // emitidos permite predecir los siguientes. Es thread-safe y se reutiliza.
+    private static final SecureRandom GENERADOR_NUMERO_CUENTA = new SecureRandom();
+    private static final long MENOR_NUMERO_CUENTA = 1_000_000_000L;
+    private static final long CANTIDAD_NUMEROS_CUENTA = 9_000_000_000L;
 
     private final CuentaRepository cuentaRepository;
     private final TipoCuentaRepository tipoCuentaRepository;
@@ -160,11 +166,10 @@ public class CuentaServiceImpl implements CuentaService, CuentaApi {
     }
 
     private String generarNumeroCuentaUnico() {
-        Random random = new Random();
         String numero;
         do {
-            long randomNum = 1000000000L + (long) (random.nextDouble() * 9000000000L);
-            numero = String.valueOf(randomNum);
+            // Siempre 10 digitos: de 1000000000 a 9999999999.
+            numero = String.valueOf(MENOR_NUMERO_CUENTA + GENERADOR_NUMERO_CUENTA.nextLong(CANTIDAD_NUMEROS_CUENTA));
         } while (cuentaRepository.existsByNumeroCuenta(numero));
         return numero;
     }
