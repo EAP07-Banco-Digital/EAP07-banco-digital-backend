@@ -27,6 +27,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Optional;
@@ -37,6 +38,7 @@ public class UsuarioService implements UsuarioApi {
 
     private static final String ESTADO_INICIAL = "ACTIVO";
     private static final String ROL_REGISTRO = "CLIENTE";
+    private static final int MAX_BYTES_PASSWORD = 72;
 
     private final UsuarioRepository usuarioRepository;
     private final ClienteRepository clienteRepository;
@@ -48,6 +50,16 @@ public class UsuarioService implements UsuarioApi {
 
     @Transactional
     public RegistroUsuarioResponseDTO registrar(RegistroUsuarioRequestDTO request) {
+
+        // BCrypt solo admite 72 bytes y con mas lanza una excepcion (un 500). Se
+        // cuentan bytes y no caracteres: una tilde ocupa dos bytes en UTF-8.
+        if (request.getPassword().getBytes(StandardCharsets.UTF_8).length > MAX_BYTES_PASSWORD) {
+            throw new NegocioException(
+                    "VALIDATION_ERROR",
+                    MensajesRegistro.PASSWORD_DEMASIADO_LARGA,
+                    HttpStatus.BAD_REQUEST
+            );
+        }
 
         String email = Correos.normalizar(request.getEmail());
 

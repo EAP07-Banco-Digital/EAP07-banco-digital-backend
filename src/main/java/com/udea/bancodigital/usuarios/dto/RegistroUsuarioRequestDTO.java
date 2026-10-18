@@ -4,34 +4,46 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
 public class RegistroUsuarioRequestDTO {
 
+    // Los @Size reflejan el largo de las columnas (varchar 255): sin ellos, un
+    // texto mas largo llegaba a la base y la peticion terminaba en un 500.
+    private static final int LARGO_COLUMNA = 255;
+
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
+    @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String nombres;
 
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
+    @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String apellidos;
 
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
+    @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String tipoDocumento;
 
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
+    @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String numeroDocumento;
 
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
     @Email(message = MensajesRegistro.CORREO_INVALIDO)
+    @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String email;
 
     @NotNull(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
     private LocalDate fechaNacimiento;
 
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
+    @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String telefono;
 
     @NotBlank(message = MensajesRegistro.CAMPOS_OBLIGATORIOS)
+    @Size(max = LARGO_COLUMNA, message = MensajesRegistro.CAMPO_DEMASIADO_LARGO)
     private String direccion;
 
     // Minimo 8 caracteres, con al menos una mayuscula, un numero y un simbolo.

@@ -244,6 +244,38 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void registroConContrasenaDeMasDe72BytesFallaCon400EnLugarDe500() {
+        // 40 caracteres, pero 80 bytes: cada "ñ" ocupa dos en UTF-8. BCrypt
+        // lanzaria una excepcion con mas de 72 bytes.
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setPassword("Aa1!" + "ñ".repeat(36));
+
+        assertThatThrownBy(() -> usuarioService.registrar(solicitud))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("VALIDATION_ERROR");
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRegistro.PASSWORD_DEMASIADO_LARGA);
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+
+        verifyNoInteractions(usuarioRepository, clienteRepository, passwordEncoder);
+    }
+
+    @Test
+    void registroConContrasenaDeExactamente72BytesSeAcepta() {
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setPassword("Aa1!" + "x".repeat(68));
+        given(rolRepository.findByNombreIgnoreCase("CLIENTE")).willReturn(Optional.of(new Rol(1L, "CLIENTE")));
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVO")).willReturn(Optional.of(new Estado(1L, null, "ACTIVO")));
+        given(passwordEncoder.encode(anyString())).willReturn(HASH);
+        given(clienteRepository.save(any(Cliente.class))).willAnswer(inv -> inv.getArgument(0));
+        given(usuarioRepository.save(any(Usuario.class))).willReturn(usuarioPersistido());
+
+        usuarioService.registrar(solicitud);
+
+        verify(passwordEncoder).encode(solicitud.getPassword());
+    }
+
+    @Test
     void registroConDocumentoYaRegistradoFallaCon409YNoEscribeNada() {
         given(clienteRepository.existsByTipoDocumentoAndNumeroDocumento("CC", "1017654321")).willReturn(true);
 

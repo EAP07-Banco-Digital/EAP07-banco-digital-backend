@@ -23,6 +23,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -130,5 +131,60 @@ class UsuarioControllerRegistroTest {
         registrar(cuerpo)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Complete todos los campos obligatorios."));
+    }
+
+    // ------------------------------------- errores del cliente que eran un 500
+
+    @Test
+    void unJsonMalFormadoDevuelve400MalformedRequest() throws Exception {
+        mockMvc.perform(post("/api/usuarios/registro")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombres\": \"Juan\","))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("MALFORMED_REQUEST"));
+    }
+
+    @Test
+    void unaFechaConFormatoInvalidoDevuelve400MalformedRequest() throws Exception {
+        Map<String, String> cuerpo = peticionValida();
+        cuerpo.put("fechaNacimiento", "1998-13-45");
+
+        registrar(cuerpo)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("MALFORMED_REQUEST"));
+    }
+
+    @Test
+    void unCuerpoQueNoEsJsonDevuelve415() throws Exception {
+        mockMvc.perform(post("/api/usuarios/registro")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("nombres=Juan"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.errorCode").value("UNSUPPORTED_MEDIA_TYPE"));
+    }
+
+    @Test
+    void unMetodoNoSoportadoDevuelve405() throws Exception {
+        mockMvc.perform(get("/api/usuarios/registro"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.errorCode").value("METHOD_NOT_ALLOWED"));
+    }
+
+    @Test
+    void unaRutaInexistenteDevuelve404() throws Exception {
+        mockMvc.perform(get("/api/usuarios/no-existe/en-ninguna-parte"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
+    void unCampoMasLargoQueLaColumnaDevuelve400EnLugarDe500() throws Exception {
+        Map<String, String> cuerpo = peticionValida();
+        cuerpo.put("direccion", "x".repeat(256));
+
+        registrar(cuerpo)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value(MensajesRegistro.CAMPO_DEMASIADO_LARGO));
     }
 }
