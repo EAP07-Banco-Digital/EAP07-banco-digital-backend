@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
 import com.udea.bancodigital.shared.jwt.JwtService;
 import com.udea.bancodigital.shared.jwt.RevocacionTokenService;
+import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import com.udea.bancodigital.usuarios.controller.UsuarioController;
 import com.udea.bancodigital.usuarios.dto.CambioRolResponseDTO;
 import com.udea.bancodigital.usuarios.dto.PerfilUsuarioDTO;
@@ -46,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SecurityConfigTest {
 
     private static final String CORREO = "juan@banco.com";
+    private static final Long USUARIO_ID = 33L;
     private static final String TOKEN = "jwt.ficticio.firmado";
 
     @Autowired
@@ -64,8 +66,8 @@ class SecurityConfigTest {
 
     private void tokenValidoDe(String rol) {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
-        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioService.obtenerRolPorEmail(CORREO)).willReturn(Optional.of(rol));
+        given(jwtService.extraerUsuarioId(TOKEN)).willReturn(USUARIO_ID);
+        given(usuarioService.obtenerIdentidadPorId(USUARIO_ID)).willReturn(Optional.of(new UsuarioApi.Identidad(CORREO, rol)));
     }
 
     private Map<String, String> registroValido() {
@@ -126,8 +128,8 @@ class SecurityConfigTest {
     @Test
     void unTokenDeUnUsuarioQueYaNoExisteTerminaEn401() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
-        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioService.obtenerRolPorEmail(CORREO)).willReturn(Optional.empty());
+        given(jwtService.extraerUsuarioId(TOKEN)).willReturn(USUARIO_ID);
+        given(usuarioService.obtenerIdentidadPorId(USUARIO_ID)).willReturn(Optional.empty());
 
         mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
                 .andExpect(status().isUnauthorized())

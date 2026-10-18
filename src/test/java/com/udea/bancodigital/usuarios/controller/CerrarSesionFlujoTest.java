@@ -12,6 +12,7 @@ import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
 import com.udea.bancodigital.shared.jwt.JwtService;
 import com.udea.bancodigital.shared.jwt.RevocacionTokenService;
 import com.udea.bancodigital.shared.repository.TokenRevocadoRepository;
+import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import com.udea.bancodigital.usuarios.dto.PerfilUsuarioDTO;
 import com.udea.bancodigital.usuarios.entity.Rol;
 import com.udea.bancodigital.usuarios.entity.Usuario;
@@ -87,8 +88,9 @@ class CerrarSesionFlujoTest {
         usuario.setRol(new Rol(1L, "CLIENTE"));
         usuario.setEstado(new Estado(1L, null, "ACTIVO"));
         given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
-        // El filtro JWT ya no lee el repositorio: pide el rol a UsuarioApi.
-        given(usuarioService.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
+        // El filtro JWT ya no lee el repositorio: pide correo y rol a UsuarioApi.
+        given(usuarioService.obtenerIdentidadPorId(1L))
+                .willReturn(Optional.of(new UsuarioApi.Identidad(CORREO, "CLIENTE")));
 
         given(usuarioService.consultarPerfil(CORREO))
                 .willReturn(new PerfilUsuarioDTO(1L, "Juan Manuel Tabares", CORREO, "***4321",
@@ -183,7 +185,8 @@ class CerrarSesionFlujoTest {
         administrador.setRol(new Rol(2L, "ADMIN"));
         administrador.setEstado(new Estado(1L, null, "ACTIVO"));
         given(usuarioRepository.findByEmailForUpdate(correoAdmin)).willReturn(Optional.of(administrador));
-        given(usuarioService.obtenerRolPorEmail(correoAdmin)).willReturn(Optional.of("ADMIN"));
+        given(usuarioService.obtenerIdentidadPorId(2L))
+                .willReturn(Optional.of(new UsuarioApi.Identidad(correoAdmin, "ADMIN")));
 
         String cuerpo = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

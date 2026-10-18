@@ -117,7 +117,7 @@ class GestionRolesFlujoTest {
     }
 
     private String bearer(Usuario usuario) {
-        return "Bearer " + jwtService.generarToken(usuario.getEmail(), usuario.getRol().getNombre());
+        return "Bearer " + jwtService.generarToken(usuario.getId(), usuario.getRol().getNombre());
     }
 
     private ResultActions cambiarRol(String autorizacion, Object id, String cuerpo) throws Exception {

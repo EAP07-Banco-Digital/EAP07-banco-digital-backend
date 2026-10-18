@@ -198,10 +198,10 @@ public class UsuarioService implements UsuarioApi {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<String> obtenerRolPorEmail(String email) {
-        return usuarioRepository.findByEmail(email)
-                                .filter(Usuario::estaActivo)
-                .map(usuario -> usuario.getRol().getNombre());
+    public Optional<Identidad> obtenerIdentidadPorId(Long usuarioId) {
+        return usuarioRepository.findById(usuarioId)
+                .filter(Usuario::estaActivo)
+                .map(usuario -> new Identidad(usuario.getEmail(), usuario.getRol().getNombre()));
     }
 
     private Usuario buscarPorEmail(String email) {

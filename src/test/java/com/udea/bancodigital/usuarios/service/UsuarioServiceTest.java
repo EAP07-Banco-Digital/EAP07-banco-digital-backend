@@ -2,6 +2,7 @@ package com.udea.bancodigital.usuarios.service;
 
 import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.shared.repository.EstadoRepository;
+import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import com.udea.bancodigital.usuarios.dto.ActualizarPerfilRequestDTO;
 import com.udea.bancodigital.usuarios.dto.CambiarRolRequestDTO;
 import com.udea.bancodigital.usuarios.dto.CambioRolResponseDTO;
@@ -426,28 +427,29 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void obtenerRolPorEmailDevuelveElNombreDelRolActual() {
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioPersistido()));
+    void obtenerIdentidadPorIdDevuelveElCorreoYElRolActuales() {
+        given(usuarioRepository.findById(USUARIO_ID)).willReturn(Optional.of(usuarioPersistido()));
 
-        assertThat(usuarioService.obtenerRolPorEmail(CORREO)).contains("CLIENTE");
+        assertThat(usuarioService.obtenerIdentidadPorId(USUARIO_ID))
+                .contains(new UsuarioApi.Identidad(CORREO, "CLIENTE"));
     }
 
     @Test
-    void obtenerRolPorEmailDeUnUsuarioInexistenteDevuelveVacioSinFallar() {
+    void obtenerIdentidadDeUnUsuarioInexistenteDevuelveVacioSinFallar() {
         // El filtro JWT interpreta el vacio como "no autenticar" (401); una
         // excepcion aqui se convertiria en un 500 en medio de la cadena de filtros.
-        given(usuarioRepository.findByEmail("nadie@banco.com")).willReturn(Optional.empty());
+        given(usuarioRepository.findById(404L)).willReturn(Optional.empty());
 
-        assertThat(usuarioService.obtenerRolPorEmail("nadie@banco.com")).isEmpty();
+        assertThat(usuarioService.obtenerIdentidadPorId(404L)).isEmpty();
     }
 
     @Test
-    void obtenerRolPorEmailDeUnUsuarioInactivoDevuelveVacio() {
+    void obtenerIdentidadDeUnUsuarioInactivoDevuelveVacio() {
         Usuario usuario = usuarioPersistido();
         usuario.setEstado(new Estado(2L, null, "INACTIVO"));
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+        given(usuarioRepository.findById(USUARIO_ID)).willReturn(Optional.of(usuario));
 
-        assertThat(usuarioService.obtenerRolPorEmail(CORREO)).isEmpty();
+        assertThat(usuarioService.obtenerIdentidadPorId(USUARIO_ID)).isEmpty();
     }
 
     // -------------------------------------------------------------- cambio de rol

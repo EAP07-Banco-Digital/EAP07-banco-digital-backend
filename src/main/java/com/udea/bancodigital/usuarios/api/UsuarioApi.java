@@ -21,13 +21,19 @@ public interface UsuarioApi {
     Long obtenerIdClientePorEmail(String email);
 
     /**
-     * Obtiene el nombre del rol actual del usuario (ej. "CLIENTE", "ADMIN").
-     * <p>
-     * Lo usa el filtro JWT en cada petición: el rol se lee de la base y no del
-     * token, así un cambio de rol (HU9) aplica de inmediato.
-     *
-     * @param email email extraído del JWT
-    * @return el rol, o vacío si el usuario no existe o no está activo
+     * Correo y rol vigentes de un usuario, tal como están en la base.
      */
-    Optional<String> obtenerRolPorEmail(String email);
+    record Identidad(String email, String rol) {}
+
+    /**
+     * Obtiene el correo y el rol actuales del usuario (ej. "CLIENTE", "ADMIN").
+     * <p>
+     * Lo usa el filtro JWT en cada petición: el token solo trae el id, y el
+     * correo y el rol se leen de la base. Así un cambio de rol (HU9) aplica de
+     * inmediato y un cambio de correo (HU7) no invalida la sesión abierta.
+     *
+     * @param usuarioId id del usuario extraído del JWT
+     * @return la identidad, o vacío si el usuario no existe o no está activo
+     */
+    Optional<Identidad> obtenerIdentidadPorId(Long usuarioId);
 }

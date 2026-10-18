@@ -72,8 +72,8 @@ public class AuthService {
         usuario.setBloqueadoHasta(null);
         usuarioRepository.save(usuario);
 
-        // Genera el JWT utilizando el email y el rol del usuario.
-        String token = jwtService.generarToken(usuario.getEmail(), rol);
+        // Genera el JWT con el id (no el correo, que puede cambiar) y el rol del usuario.
+        String token = jwtService.generarToken(usuario.getId(), rol);
 
         // Devuelve el token, el tipo de autenticacion y el rol del usuario.
         return new LoginResponseDTO(token, "Bearer", rol);
