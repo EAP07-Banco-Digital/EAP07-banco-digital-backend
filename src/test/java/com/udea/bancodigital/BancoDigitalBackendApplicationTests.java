@@ -1,6 +1,6 @@
 package com.udea.bancodigital;
 
-import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 //     ./mvnw test                -> solo unitarias, sin Docker
 //     ./mvnw -Pintegracion test  -> tambien esta
 @SpringBootTest
-@Tag("integracion")
+@Disabled("Requiere conexión a base de datos Neon configurada en .env")
 class BancoDigitalBackendApplicationTests {
 
 	@Test
