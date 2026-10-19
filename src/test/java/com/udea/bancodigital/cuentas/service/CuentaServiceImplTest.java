@@ -9,7 +9,7 @@ import com.udea.bancodigital.cuentas.repository.TipoCuentaRepository;
 import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.repository.EstadoRepository;
-import com.udea.bancodigital.cuentas.api.CuentaApi;
+import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -47,6 +47,9 @@ class CuentaServiceImplTest {
 
     @Mock
     private EstadoRepository estadoRepository;
+
+    @Mock
+    private TransaccionApi transaccionApi;
 
     @InjectMocks
     private CuentaServiceImpl cuentaService;
@@ -262,55 +265,4 @@ class CuentaServiceImplTest {
         verify(cuentaRepository, never()).findByNumeroCuenta(anyString());
     }
 
-    // ------------------------------------------------------ API publica cuentas
-
-    @Test
-    void obtenerInfoPorNumeroCuentaDevuelveLosDatosParaOtrosModulos() {
-        given(cuentaRepository.findByNumeroCuenta(NUMERO))
-                .willReturn(Optional.of(cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA")));
-
-        CuentaApi.CuentaInfo info = cuentaService.obtenerInfoPorNumeroCuenta(NUMERO);
-
-        assertThat(info.id()).isEqualTo(1L);
-        assertThat(info.clienteId()).isEqualTo(CLIENTE_ID);
-        assertThat(info.numeroCuenta()).isEqualTo(NUMERO);
-        assertThat(info.saldoDisponible()).isEqualByComparingTo("500000.00");
-        assertThat(info.estadoNombre()).isEqualTo("ACTIVA");
-    }
-
-    @Test
-    void obtenerInfoDeUnaCuentaInexistenteFallaCon404IndicandoElNumero() {
-        given(cuentaRepository.findByNumeroCuenta("9999999999")).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> cuentaService.obtenerInfoPorNumeroCuenta("9999999999"))
-                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
-                    assertThat(excepcion.getErrorCode()).isEqualTo("DESTINATION_ACCOUNT_NOT_FOUND");
-                    assertThat(excepcion.getMessage()).contains("9999999999");
-                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-                });
-    }
-
-    @Test
-    void actualizarSaldoFijaElNuevoValorEnLaCuenta() {
-        Cuenta cuenta = cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA");
-        given(cuentaRepository.findById(1L)).willReturn(Optional.of(cuenta));
-
-        cuentaService.actualizarSaldo(1L, new BigDecimal("250000.00"));
-
-        assertThat(cuenta.getSaldoDisponible()).isEqualByComparingTo("250000.00");
-        verify(cuentaRepository).save(cuenta);
-    }
-
-    @Test
-    void actualizarSaldoDeUnaCuentaQueDesaparecioFallaCon500() {
-        given(cuentaRepository.findById(1L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> cuentaService.actualizarSaldo(1L, BigDecimal.ONE))
-                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
-                    assertThat(excepcion.getErrorCode()).isEqualTo("INTERNAL_ERROR");
-                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-                });
-
-        verify(cuentaRepository, never()).save(any(Cuenta.class));
-    }
 }
