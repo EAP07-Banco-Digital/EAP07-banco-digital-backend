@@ -9,6 +9,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -194,6 +195,18 @@ class GlobalExceptionHandlerTest {
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(cuerpo(respuesta).get("errorCode")).isEqualTo("INVALID_CREDENTIALS");
         assertThat(cuerpo(respuesta).get("message")).isEqualTo("Credenciales invalidas");
+    }
+
+    @Test
+    void unaViolacionDeRestriccionDeLaBaseResponde409SinElDetalleDelEsquema() {
+        ResponseEntity<Map<String, Object>> respuesta = handler.manejarConflictoDeDatos(
+                new DataIntegrityViolationException("duplicate key value violates unique constraint \"uq_clientes_documento\""),
+                peticion);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(cuerpo(respuesta).get("errorCode")).isEqualTo("DATA_CONFLICT");
+        assertThat(cuerpo(respuesta).get("message").toString()).doesNotContain("uq_clientes_documento");
+        assertThat(cuerpo(respuesta).get("traceId")).isEqualTo(TRAZA);
     }
 
     @Test

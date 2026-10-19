@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 class JwtAuthenticationFilterTest {
 
     private static final String CORREO = "juan@banco.com";
+    private static final Long USUARIO_ID = 33L;
     private static final String TOKEN = "jwt.ficticio.firmado";
 
     @Mock
@@ -89,10 +90,10 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void unTokenValidoAutenticaConElCorreoYElRolDelUsuario() throws Exception {
+    void unTokenValidoAutenticaConElCorreoYElRolVigentesDelUsuario() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
-        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
+        given(jwtService.extraerUsuarioId(TOKEN)).willReturn(USUARIO_ID);
+        given(usuarioApi.obtenerIdentidadPorId(USUARIO_ID)).willReturn(Optional.of(new UsuarioApi.Identidad(CORREO, "CLIENTE")));
 
         pasar("Bearer " + TOKEN);
 
@@ -104,10 +105,24 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void siElUsuarioCambioSuCorreoElMismoTokenAutenticaConElCorreoNuevo() throws Exception {
+        // HU7: el token solo guarda el id, asi que cambiar el correo no cierra
+        // la sesion; el principal pasa a ser el correo que hay en la base.
+        given(jwtService.esTokenValido(TOKEN)).willReturn(true);
+        given(jwtService.extraerUsuarioId(TOKEN)).willReturn(USUARIO_ID);
+        given(usuarioApi.obtenerIdentidadPorId(USUARIO_ID))
+                .willReturn(Optional.of(new UsuarioApi.Identidad("nuevo@banco.com", "CLIENTE")));
+
+        pasar("Bearer " + TOKEN);
+
+        assertThat(autenticacionActual().getName()).isEqualTo("nuevo@banco.com");
+    }
+
+    @Test
     void unRolDistintoDeClienteSeTraduceEnUnaAutoridadDistinta() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
-        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("ADMIN"));
+        given(jwtService.extraerUsuarioId(TOKEN)).willReturn(USUARIO_ID);
+        given(usuarioApi.obtenerIdentidadPorId(USUARIO_ID)).willReturn(Optional.of(new UsuarioApi.Identidad(CORREO, "ADMIN")));
 
         pasar("Bearer " + TOKEN);
 
@@ -119,8 +134,8 @@ class JwtAuthenticationFilterTest {
     @Test
     void unTokenDeUnUsuarioQueYaNoExisteNoAutentica() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
-        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.empty());
+        given(jwtService.extraerUsuarioId(TOKEN)).willReturn(USUARIO_ID);
+        given(usuarioApi.obtenerIdentidadPorId(USUARIO_ID)).willReturn(Optional.empty());
 
         pasar("Bearer " + TOKEN);
 
@@ -130,8 +145,8 @@ class JwtAuthenticationFilterTest {
     @Test
     void laAutenticacionNoExponeElTokenComoCredencial() throws Exception {
         given(jwtService.esTokenValido(anyString())).willReturn(true);
-        when(jwtService.extraerEmail(anyString())).thenReturn(CORREO);
-        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
+        when(jwtService.extraerUsuarioId(anyString())).thenReturn(USUARIO_ID);
+        given(usuarioApi.obtenerIdentidadPorId(USUARIO_ID)).willReturn(Optional.of(new UsuarioApi.Identidad(CORREO, "CLIENTE")));
 
         pasar("Bearer " + TOKEN);
 
@@ -154,8 +169,8 @@ class JwtAuthenticationFilterTest {
     @Test
     void unTokenVigenteNoRevocadoNoDejaLaMarcaDeRevocado() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);
-        given(jwtService.extraerEmail(TOKEN)).willReturn(CORREO);
-        given(usuarioApi.obtenerRolPorEmail(CORREO)).willReturn(Optional.of("CLIENTE"));
+        given(jwtService.extraerUsuarioId(TOKEN)).willReturn(USUARIO_ID);
+        given(usuarioApi.obtenerIdentidadPorId(USUARIO_ID)).willReturn(Optional.of(new UsuarioApi.Identidad(CORREO, "CLIENTE")));
 
         MockHttpServletRequest peticion = pasar("Bearer " + TOKEN);
 

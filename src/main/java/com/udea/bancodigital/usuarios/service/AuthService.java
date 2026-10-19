@@ -43,8 +43,9 @@ public class AuthService {
     @Transactional(noRollbackFor = {BadCredentialsException.class, NegocioException.class})
     public LoginResponseDTO login(LoginRequestDTO request) {
 
-        // Busca el usuario utilizando el email recibido en la solicitud.
-        Usuario usuario = usuarioRepository.findByEmailForUpdate(request.getEmail())
+        // Busca el usuario utilizando el email recibido en la solicitud, normalizado
+        // igual que al registrarlo: "Juan@Banco.com" y "juan@banco.com" son el mismo.
+        Usuario usuario = usuarioRepository.findByEmailForUpdate(Correos.normalizar(request.getEmail()))
                 .orElseThrow(() -> new BadCredentialsException("Credenciales invalidas"));
 
         OffsetDateTime ahora = OffsetDateTime.now();
@@ -72,8 +73,8 @@ public class AuthService {
         usuario.setBloqueadoHasta(null);
         usuarioRepository.save(usuario);
 
-        // Genera el JWT utilizando el email y el rol del usuario.
-        String token = jwtService.generarToken(usuario.getEmail(), rol);
+        // Genera el JWT con el id (no el correo, que puede cambiar) y el rol del usuario.
+        String token = jwtService.generarToken(usuario.getId(), rol);
 
         // Devuelve el token, el tipo de autenticacion y el rol del usuario.
         return new LoginResponseDTO(token, "Bearer", rol);

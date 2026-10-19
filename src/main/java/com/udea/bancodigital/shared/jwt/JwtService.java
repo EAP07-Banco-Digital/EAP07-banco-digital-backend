@@ -27,13 +27,15 @@ public class JwtService {
         this.expirationMs = expirationMs;
     }
 
-    public String generarToken(String email, String rol) {
+    // El subject es el id del usuario y no su correo: el correo se puede
+    // cambiar desde el perfil (HU7) y la sesion abierta no debe caerse por eso.
+    public String generarToken(Long usuarioId, String rol) {
         return Jwts.builder()
                 // Identificador unico (jti): sin el, dos logins del mismo usuario
                 // en el mismo segundo producen el mismo token, y cerrar una
                 // sesion revocaria tambien la otra.
                 .id(UUID.randomUUID().toString())
-                .subject(email)
+                .subject(String.valueOf(usuarioId))
                 .claim("rol", rol)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationMs))
@@ -41,13 +43,13 @@ public class JwtService {
                 .compact();
     }
 
-    public String extraerEmail(String token) {
-        return Jwts.parser()
+    public Long extraerUsuarioId(String token) {
+        return Long.valueOf(Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
-                .getSubject();
+                .getSubject());
     }
 
     public Date extraerExpiracion(String token) {
@@ -61,14 +63,20 @@ public class JwtService {
 
     public boolean esTokenValido(String token) {
         try {
-            Jwts.parser()
+            String subject = Jwts.parser()
                     .verifyWith(key)
                     .build()
-                    .parseSignedClaims(token);
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .getSubject();
+            // Los tokens emitidos antes de usar el id como subject traian el
+            // correo: se rechazan aqui para que el filtro no falle al leerlos.
+            Long.parseLong(subject);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
-            // Token expirado, mal formado o firma invalida -- se trata como invalido,
-            // no se propaga la excepcion al llamador.
+            // Token expirado, mal formado, con firma invalida o sin un id como
+            // subject (NumberFormatException) -- se trata como invalido, no se
+            // propaga la excepcion al llamador.
             return false;
         }
     }

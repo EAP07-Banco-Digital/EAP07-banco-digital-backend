@@ -11,6 +11,7 @@ import com.udea.bancodigital.shared.jwt.JwtService;
 import com.udea.bancodigital.shared.jwt.RevocacionTokenService;
 import com.udea.bancodigital.shared.repository.EstadoRepository;
 import com.udea.bancodigital.shared.repository.TokenRevocadoRepository;
+import com.udea.bancodigital.usuarios.entity.Cliente;
 import com.udea.bancodigital.usuarios.entity.Rol;
 import com.udea.bancodigital.usuarios.entity.Usuario;
 import com.udea.bancodigital.usuarios.mapper.ClienteMapperImpl;
@@ -116,8 +117,21 @@ class GestionRolesFlujoTest {
         given(rolRepository.findByNombreIgnoreCase("SUPERUSUARIO")).willReturn(Optional.empty());
     }
 
+    private Cliente clienteDelBanco(Long id) {
+        Cliente datos = new Cliente();
+        datos.setId(id);
+        datos.setNombres("Ana");
+        datos.setApellidos("Restrepo");
+        datos.setTipoDocumento("CC");
+        datos.setNumeroDocumento("1017000000");
+        datos.setEmail(CORREO_CLIENTE);
+        datos.setTelefono("3000000000");
+        datos.setDireccion("Calle 1");
+        return datos;
+    }
+
     private String bearer(Usuario usuario) {
-        return "Bearer " + jwtService.generarToken(usuario.getEmail(), usuario.getRol().getNombre());
+        return "Bearer " + jwtService.generarToken(usuario.getId(), usuario.getRol().getNombre());
     }
 
     private ResultActions cambiarRol(String autorizacion, Object id, String cuerpo) throws Exception {
@@ -147,15 +161,17 @@ class GestionRolesFlujoTest {
 
     @Test
     void elNuevoRolAplicaDeInmediatoSobreElTokenQueElUsuarioYaTenia() throws Exception {
+        cliente.setClienteId(20L);
+        given(clienteRepository.findById(20L)).willReturn(Optional.of(clienteDelBanco(20L)));
         String tokenDelCliente = bearer(cliente);
-        mockMvc.perform(get("/api/usuarios/prueba").header("Authorization", tokenDelCliente))
+        mockMvc.perform(get("/api/usuarios/me").header("Authorization", tokenDelCliente))
                 .andExpect(status().isOk());
 
         cambiarRol(bearer(administrador), CLIENTE_ID, "{\"rol\":\"ADMIN\"}")
                 .andExpect(status().isOk());
 
         // Mismo token, pero el filtro lee el rol de la base: ya no es CLIENTE.
-        mockMvc.perform(get("/api/usuarios/prueba").header("Authorization", tokenDelCliente))
+        mockMvc.perform(get("/api/usuarios/me").header("Authorization", tokenDelCliente))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
     }

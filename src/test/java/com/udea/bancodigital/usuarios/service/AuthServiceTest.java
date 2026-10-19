@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -66,7 +67,7 @@ class AuthServiceTest {
     void loginExitosoDevuelveElTokenYTipoBearer() {
         given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
-        given(jwtService.generarToken(CORREO, "CLIENTE")).willReturn("jwt.ficticio.firmado");
+        given(jwtService.generarToken(1L, "CLIENTE")).willReturn("jwt.ficticio.firmado");
 
         LoginResponseDTO respuesta = authService.login(new LoginRequestDTO(CORREO, CLAVE));
 
@@ -75,16 +76,27 @@ class AuthServiceTest {
     }
 
     @Test
+    void loginEncuentraAlUsuarioAunqueEscribaElCorreoConMayusculasYEspacios() {
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
+        given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
+        given(jwtService.generarToken(1L, "CLIENTE")).willReturn("jwt.ficticio.firmado");
+
+        LoginResponseDTO respuesta = authService.login(new LoginRequestDTO(" Juan@Banco.COM ", CLAVE));
+
+        assertThat(respuesta.getToken()).isEqualTo("jwt.ficticio.firmado");
+    }
+
+    @Test
     void loginExitosoFirmaElTokenConElRolDelUsuario() {
         Usuario usuario = usuarioConEstado("ACTIVO");
         usuario.setRol(new Rol(2L, "ADMIN"));
         given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
-        given(jwtService.generarToken(anyString(), anyString())).willReturn("jwt.ficticio.firmado");
+        given(jwtService.generarToken(anyLong(), anyString())).willReturn("jwt.ficticio.firmado");
 
         authService.login(new LoginRequestDTO(CORREO, CLAVE));
 
-        verify(jwtService).generarToken(CORREO, "ADMIN");
+        verify(jwtService).generarToken(1L, "ADMIN");
     }
 
     @Test
@@ -106,7 +118,7 @@ class AuthServiceTest {
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Credenciales invalidas");
 
-        verify(jwtService, never()).generarToken(anyString(), anyString());
+        verify(jwtService, never()).generarToken(anyLong(), anyString());
     }
 
     @Test
@@ -118,14 +130,14 @@ class AuthServiceTest {
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("El usuario no esta activo");
 
-        verify(jwtService, never()).generarToken(anyString(), anyString());
+        verify(jwtService, never()).generarToken(anyLong(), anyString());
     }
 
     @Test
     void loginAceptaElEstadoActivoEscritoEnMinusculas() {
         given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("activo")));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
-        given(jwtService.generarToken(CORREO, "CLIENTE")).willReturn("jwt.ficticio.firmado");
+        given(jwtService.generarToken(1L, "CLIENTE")).willReturn("jwt.ficticio.firmado");
 
         assertThat(authService.login(new LoginRequestDTO(CORREO, CLAVE)).getToken())
                 .isEqualTo("jwt.ficticio.firmado");
@@ -162,7 +174,7 @@ class AuthServiceTest {
         assertThat(usuario.getIntentosFallidos()).isEqualTo(5);
         assertThat(usuario.getBloqueadoHasta()).isAfter(OffsetDateTime.now().plusMinutes(29));
         verify(usuarioRepository).save(usuario);
-        verify(jwtService, never()).generarToken(anyString(), anyString());
+        verify(jwtService, never()).generarToken(anyLong(), anyString());
     }
 
     @Test
@@ -200,7 +212,7 @@ class AuthServiceTest {
         usuario.setPrimerIntentoFallido(OffsetDateTime.now().minusMinutes(2));
         given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
-        given(jwtService.generarToken(CORREO, "CLIENTE")).willReturn("jwt.ficticio.firmado");
+        given(jwtService.generarToken(1L, "CLIENTE")).willReturn("jwt.ficticio.firmado");
 
         authService.login(new LoginRequestDTO(CORREO, CLAVE));
 

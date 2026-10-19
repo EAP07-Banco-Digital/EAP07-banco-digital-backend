@@ -2,14 +2,19 @@ package com.udea.bancodigital.shared.config;
 
 import com.udea.bancodigital.shared.exception.NegocioException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -73,6 +78,63 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
                 "El parametro '" + exception.getName() + "' no tiene un formato valido",
                 null, request
+        );
+    }
+
+    // JSON mal formado, o un campo con un tipo que no se puede convertir (por
+    // ejemplo, una fecha "2020-13-45" o un monto "mil"): es un error del cliente.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> manejarCuerpoIlegible(
+            HttpMessageNotReadableException exception, HttpServletRequest request) {
+
+        return construirRespuesta(
+                HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST",
+                "El cuerpo de la peticion no es un JSON valido o algun campo tiene un formato invalido",
+                null, request
+        );
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> manejarRutaInexistente(
+            NoResourceFoundException exception, HttpServletRequest request) {
+
+        return construirRespuesta(
+                HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND",
+                "El recurso solicitado no existe", null, request
+        );
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> manejarMetodoNoPermitido(
+            HttpRequestMethodNotSupportedException exception, HttpServletRequest request) {
+
+        return construirRespuesta(
+                HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED",
+                "El metodo " + exception.getMethod() + " no esta permitido en este recurso",
+                null, request
+        );
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> manejarTipoDeContenidoNoSoportado(
+            HttpMediaTypeNotSupportedException exception, HttpServletRequest request) {
+
+        return construirRespuesta(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE",
+                "El cuerpo de la peticion debe enviarse como application/json", null, request
+        );
+    }
+
+    // Ultima defensa de las restricciones de la base (correo o documento unico):
+    // si dos peticiones pasan a la vez la validacion del servicio, la segunda
+    // choca aqui. El detalle de la base no se devuelve: delata el esquema.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> manejarConflictoDeDatos(
+            DataIntegrityViolationException exception, HttpServletRequest request) {
+
+        return construirRespuesta(
+                HttpStatus.CONFLICT, "DATA_CONFLICT",
+                "La operacion entra en conflicto con datos ya registrados", null, request
         );
     }
 

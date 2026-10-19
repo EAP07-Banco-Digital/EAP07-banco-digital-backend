@@ -27,7 +27,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import java.util.Optional;
 
 @Service
@@ -36,6 +38,7 @@ public class UsuarioService implements UsuarioApi {
 
     private static final String ESTADO_INICIAL = "ACTIVO";
     private static final String ROL_REGISTRO = "CLIENTE";
+    private static final int MAX_BYTES_PASSWORD = 72;
 
     private final UsuarioRepository usuarioRepository;
     private final ClienteRepository clienteRepository;
@@ -48,12 +51,33 @@ public class UsuarioService implements UsuarioApi {
     @Transactional
     public RegistroUsuarioResponseDTO registrar(RegistroUsuarioRequestDTO request) {
 
-        String email = request.getEmail().trim();
+        // BCrypt solo admite 72 bytes y con mas lanza una excepcion (un 500). Se
+        // cuentan bytes y no caracteres: una tilde ocupa dos bytes en UTF-8.
+        if (request.getPassword().getBytes(StandardCharsets.UTF_8).length > MAX_BYTES_PASSWORD) {
+            throw new NegocioException(
+                    "VALIDATION_ERROR",
+                    MensajesRegistro.CONTRASENA_DEMASIADO_LARGA,
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        String email = Correos.normalizar(request.getEmail());
 
         if (usuarioRepository.existsByEmailIgnoreCase(email)) {
             throw new NegocioException(
                     "EMAIL_ALREADY_REGISTERED",
                     MensajesRegistro.CORREO_DUPLICADO,
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        // Normalizado igual que se guarda: "cc" y "CC " son el mismo tipo de documento.
+        String tipoDocumento = request.getTipoDocumento().trim().toUpperCase(Locale.ROOT);
+        String numeroDocumento = request.getNumeroDocumento().trim();
+        if (clienteRepository.existsByTipoDocumentoAndNumeroDocumento(tipoDocumento, numeroDocumento)) {
+            throw new NegocioException(
+                    "DOCUMENT_ALREADY_REGISTERED",
+                    MensajesRegistro.DOCUMENTO_DUPLICADO,
                     HttpStatus.CONFLICT
             );
         }
@@ -86,6 +110,8 @@ public class UsuarioService implements UsuarioApi {
 
         Cliente cliente = clienteMapper.toEntity(request);
         cliente.setEmail(email);
+        cliente.setTipoDocumento(tipoDocumento);
+        cliente.setNumeroDocumento(numeroDocumento);
         cliente.setFechaRegistro(ahora);
         Cliente clienteGuardado = clienteRepository.save(cliente);
 
@@ -127,7 +153,7 @@ public class UsuarioService implements UsuarioApi {
         Usuario usuario = buscarPorEmail(emailAutenticado);
         Cliente cliente = buscarClienteDe(usuario);
 
-        String nuevoEmail = request.getEmail().trim();
+        String nuevoEmail = Correos.normalizar(request.getEmail());
         if (usuarioRepository.existsByEmailIgnoreCaseAndIdNot(nuevoEmail, usuario.getId())) {
             throw new NegocioException(
                     "DUPLICATE_EMAIL",
@@ -198,10 +224,10 @@ public class UsuarioService implements UsuarioApi {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<String> obtenerRolPorEmail(String email) {
-        return usuarioRepository.findByEmail(email)
-                                .filter(Usuario::estaActivo)
-                .map(usuario -> usuario.getRol().getNombre());
+    public Optional<Identidad> obtenerIdentidadPorId(Long usuarioId) {
+        return usuarioRepository.findById(usuarioId)
+                .filter(Usuario::estaActivo)
+                .map(usuario -> new Identidad(usuario.getEmail(), usuario.getRol().getNombre()));
     }
 
     private Usuario buscarPorEmail(String email) {

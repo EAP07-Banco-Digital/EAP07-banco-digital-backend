@@ -30,6 +30,21 @@ public interface CuentaApi {
     CuentaInfo obtenerInfoPorNumeroCuenta(String numeroCuenta);
 
     /**
+     * Igual que {@link #obtenerInfoPorNumeroCuenta(String)}, pero bloquea la fila
+     * de la cuenta hasta que termine la transacción del llamador.
+     * <p>
+     * Es la lectura que se debe usar antes de {@link #actualizarSaldo(Long, BigDecimal)}:
+     * sin el bloqueo, dos operaciones simultáneas leen el mismo saldo y una de las
+     * dos actualizaciones se pierde (doble gasto). Solo puede llamarse dentro de una
+     * transacción; si se bloquean varias cuentas, debe hacerse siempre en el mismo
+     * orden para no provocar un interbloqueo.
+     *
+     * @param numeroCuenta el número de cuenta
+     * @return CuentaInfo con el saldo vigente, de lo contrario lanza excepción de negocio
+     */
+    CuentaInfo bloquearPorNumeroCuenta(String numeroCuenta);
+
+    /**
      * Actualiza el saldo de una cuenta existente.
      * @param cuentaId ID interno de la cuenta
      * @param nuevoSaldo nuevo saldo a establecer

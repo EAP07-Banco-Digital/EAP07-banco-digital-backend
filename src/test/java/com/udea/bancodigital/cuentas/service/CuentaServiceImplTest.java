@@ -291,6 +291,30 @@ class CuentaServiceImplTest {
     }
 
     @Test
+    void bloquearPorNumeroCuentaLeeLaFilaConBloqueoYNoSinEl() {
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO))
+                .willReturn(Optional.of(cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA")));
+
+        CuentaApi.CuentaInfo info = cuentaService.bloquearPorNumeroCuenta(NUMERO);
+
+        assertThat(info.id()).isEqualTo(1L);
+        assertThat(info.saldoDisponible()).isEqualByComparingTo("500000.00");
+        verify(cuentaRepository, never()).findByNumeroCuenta(anyString());
+    }
+
+    @Test
+    void bloquearUnaCuentaInexistenteFallaCon404IndicandoElNumero() {
+        given(cuentaRepository.findByNumeroCuentaForUpdate("9999999999")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cuentaService.bloquearPorNumeroCuenta("9999999999"))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("DESTINATION_ACCOUNT_NOT_FOUND");
+                    assertThat(excepcion.getMessage()).contains("9999999999");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+                });
+    }
+
+    @Test
     void actualizarSaldoFijaElNuevoValorEnLaCuenta() {
         Cuenta cuenta = cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA");
         given(cuentaRepository.findById(1L)).willReturn(Optional.of(cuenta));

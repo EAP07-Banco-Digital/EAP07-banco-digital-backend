@@ -111,11 +111,4 @@ public class UsuarioController {
 
         return usuarioService.cambiarRol(principal.getName(), id, request);
     }
-
-    @Operation(summary = "Verificar autenticación", description = "Endpoint de prueba para verificar que el token JWT es válido.")
-    @ApiResponse(responseCode = "200", description = "El usuario está autenticado correctamente.")
-    @GetMapping("/prueba")
-    public String prueba() {
-        return "Usuario autenticado correctamente";
-    }
 }

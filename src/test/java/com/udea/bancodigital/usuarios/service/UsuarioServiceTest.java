@@ -2,6 +2,7 @@ package com.udea.bancodigital.usuarios.service;
 
 import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.shared.repository.EstadoRepository;
+import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import com.udea.bancodigital.usuarios.dto.ActualizarPerfilRequestDTO;
 import com.udea.bancodigital.usuarios.dto.CambiarRolRequestDTO;
 import com.udea.bancodigital.usuarios.dto.CambioRolResponseDTO;
@@ -203,6 +204,31 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void registroGuardaElCorreoEnMinusculas() {
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setEmail("Juan@Banco.COM");
+
+        given(rolRepository.findByNombreIgnoreCase("CLIENTE")).willReturn(Optional.of(new Rol(1L, "CLIENTE")));
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVO")).willReturn(Optional.of(new Estado(1L, null, "ACTIVO")));
+        given(passwordEncoder.encode(anyString())).willReturn(HASH);
+        ArgumentCaptor<Cliente> cliente = ArgumentCaptor.forClass(Cliente.class);
+        given(clienteRepository.save(cliente.capture())).willAnswer(inv -> {
+            Cliente guardado = inv.getArgument(0);
+            guardado.setId(CLIENTE_ID);
+            return guardado;
+        });
+        ArgumentCaptor<Usuario> usuario = ArgumentCaptor.forClass(Usuario.class);
+        given(usuarioRepository.save(usuario.capture())).willReturn(usuarioPersistido());
+
+        usuarioService.registrar(solicitud);
+
+        // El login busca el correo exacto: si aqui quedara con mayusculas, el
+        // usuario no podria entrar escribiendolo en minusculas.
+        assertThat(usuario.getValue().getEmail()).isEqualTo(CORREO);
+        assertThat(cliente.getValue().getEmail()).isEqualTo(CORREO);
+    }
+
+    @Test
     void registroConCorreoDuplicadoFallaYNoEscribeNada() {
         given(usuarioRepository.existsByEmailIgnoreCase(CORREO)).willReturn(true);
 
@@ -215,6 +241,79 @@ class UsuarioServiceTest {
 
         verifyNoInteractions(clienteRepository, rolRepository, estadoRepository, passwordEncoder);
         verify(usuarioRepository, never()).save(any(Usuario.class));
+    }
+
+    @Test
+    void registroConContrasenaDeMasDe72BytesFallaCon400EnLugarDe500() {
+        // 40 caracteres, pero 80 bytes: cada "ñ" ocupa dos en UTF-8. BCrypt
+        // lanzaria una excepcion con mas de 72 bytes.
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setPassword("Aa1!" + "ñ".repeat(36));
+
+        assertThatThrownBy(() -> usuarioService.registrar(solicitud))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("VALIDATION_ERROR");
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRegistro.CONTRASENA_DEMASIADO_LARGA);
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+
+        verifyNoInteractions(usuarioRepository, clienteRepository, passwordEncoder);
+    }
+
+    @Test
+    void registroConContrasenaDeExactamente72BytesSeAcepta() {
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setPassword("Aa1!" + "x".repeat(68));
+        given(rolRepository.findByNombreIgnoreCase("CLIENTE")).willReturn(Optional.of(new Rol(1L, "CLIENTE")));
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVO")).willReturn(Optional.of(new Estado(1L, null, "ACTIVO")));
+        given(passwordEncoder.encode(anyString())).willReturn(HASH);
+        given(clienteRepository.save(any(Cliente.class))).willAnswer(inv -> inv.getArgument(0));
+        given(usuarioRepository.save(any(Usuario.class))).willReturn(usuarioPersistido());
+
+        usuarioService.registrar(solicitud);
+
+        verify(passwordEncoder).encode(solicitud.getPassword());
+    }
+
+    @Test
+    void registroConDocumentoYaRegistradoFallaCon409YNoEscribeNada() {
+        given(clienteRepository.existsByTipoDocumentoAndNumeroDocumento("CC", "1017654321")).willReturn(true);
+
+        assertThatThrownBy(() -> usuarioService.registrar(solicitudValida()))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("DOCUMENT_ALREADY_REGISTERED");
+                    assertThat(excepcion.getMessage()).isEqualTo(MensajesRegistro.DOCUMENTO_DUPLICADO);
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                });
+
+        verify(clienteRepository, never()).save(any(Cliente.class));
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void registroNormalizaElDocumentoAntesDeBuscarloYDeGuardarlo() {
+        RegistroUsuarioRequestDTO solicitud = solicitudValida();
+        solicitud.setTipoDocumento(" cc ");
+        solicitud.setNumeroDocumento(" 1017654321 ");
+
+        given(rolRepository.findByNombreIgnoreCase("CLIENTE")).willReturn(Optional.of(new Rol(1L, "CLIENTE")));
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVO")).willReturn(Optional.of(new Estado(1L, null, "ACTIVO")));
+        given(passwordEncoder.encode(anyString())).willReturn(HASH);
+        ArgumentCaptor<Cliente> cliente = ArgumentCaptor.forClass(Cliente.class);
+        given(clienteRepository.save(cliente.capture())).willAnswer(inv -> {
+            Cliente guardado = inv.getArgument(0);
+            guardado.setId(CLIENTE_ID);
+            return guardado;
+        });
+        given(usuarioRepository.save(any(Usuario.class))).willReturn(usuarioPersistido());
+
+        usuarioService.registrar(solicitud);
+
+        // Sin normalizar, " cc " pasaria la validacion aunque "CC" ya existiera.
+        verify(clienteRepository).existsByTipoDocumentoAndNumeroDocumento("CC", "1017654321");
+        assertThat(cliente.getValue().getTipoDocumento()).isEqualTo("CC");
+        assertThat(cliente.getValue().getNumeroDocumento()).isEqualTo("1017654321");
     }
 
     @Test
@@ -232,7 +331,8 @@ class UsuarioServiceTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                 });
 
-        verifyNoInteractions(clienteRepository, estadoRepository);
+        verifyNoInteractions(estadoRepository);
+        verify(clienteRepository, never()).save(any(Cliente.class));
     }
 
     @Test
@@ -250,7 +350,8 @@ class UsuarioServiceTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
                 });
 
-        verifyNoInteractions(clienteRepository, estadoRepository);
+        verifyNoInteractions(estadoRepository);
+        verify(clienteRepository, never()).save(any(Cliente.class));
         verify(usuarioRepository, never()).save(any());
     }
 
@@ -281,7 +382,7 @@ class UsuarioServiceTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
                 });
 
-        verifyNoInteractions(clienteRepository);
+        verify(clienteRepository, never()).save(any(Cliente.class));
     }
 
     // ------------------------------------------------------- consulta de perfil
@@ -366,6 +467,22 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void actualizarPerfilGuardaElCorreoNuevoEnMinusculasEnLasDosTablas() {
+        Usuario usuario = usuarioPersistido();
+        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+        given(clienteRepository.findById(CLIENTE_ID)).willReturn(Optional.of(clientePersistido()));
+
+        usuarioService.actualizarPerfil(
+                CORREO, new ActualizarPerfilRequestDTO("3009999999", "Juan.Nuevo@Banco.com", "Calle 10", null));
+
+        ArgumentCaptor<Cliente> cliente = ArgumentCaptor.forClass(Cliente.class);
+        verify(clienteRepository).save(cliente.capture());
+        assertThat(usuario.getEmail()).isEqualTo("juan.nuevo@banco.com");
+        assertThat(cliente.getValue().getEmail()).isEqualTo("juan.nuevo@banco.com");
+        verify(usuarioRepository).existsByEmailIgnoreCaseAndIdNot("juan.nuevo@banco.com", USUARIO_ID);
+    }
+
+    @Test
     void actualizarPerfilRechazaElDocumentoDeIdentidad() {
         // El documento no es editable: basta con que llegue con algun valor.
         assertThatThrownBy(() -> usuarioService.actualizarPerfil(
@@ -426,28 +543,29 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void obtenerRolPorEmailDevuelveElNombreDelRolActual() {
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuarioPersistido()));
+    void obtenerIdentidadPorIdDevuelveElCorreoYElRolActuales() {
+        given(usuarioRepository.findById(USUARIO_ID)).willReturn(Optional.of(usuarioPersistido()));
 
-        assertThat(usuarioService.obtenerRolPorEmail(CORREO)).contains("CLIENTE");
+        assertThat(usuarioService.obtenerIdentidadPorId(USUARIO_ID))
+                .contains(new UsuarioApi.Identidad(CORREO, "CLIENTE"));
     }
 
     @Test
-    void obtenerRolPorEmailDeUnUsuarioInexistenteDevuelveVacioSinFallar() {
+    void obtenerIdentidadDeUnUsuarioInexistenteDevuelveVacioSinFallar() {
         // El filtro JWT interpreta el vacio como "no autenticar" (401); una
         // excepcion aqui se convertiria en un 500 en medio de la cadena de filtros.
-        given(usuarioRepository.findByEmail("nadie@banco.com")).willReturn(Optional.empty());
+        given(usuarioRepository.findById(404L)).willReturn(Optional.empty());
 
-        assertThat(usuarioService.obtenerRolPorEmail("nadie@banco.com")).isEmpty();
+        assertThat(usuarioService.obtenerIdentidadPorId(404L)).isEmpty();
     }
 
     @Test
-    void obtenerRolPorEmailDeUnUsuarioInactivoDevuelveVacio() {
+    void obtenerIdentidadDeUnUsuarioInactivoDevuelveVacio() {
         Usuario usuario = usuarioPersistido();
         usuario.setEstado(new Estado(2L, null, "INACTIVO"));
-        given(usuarioRepository.findByEmail(CORREO)).willReturn(Optional.of(usuario));
+        given(usuarioRepository.findById(USUARIO_ID)).willReturn(Optional.of(usuario));
 
-        assertThat(usuarioService.obtenerRolPorEmail(CORREO)).isEmpty();
+        assertThat(usuarioService.obtenerIdentidadPorId(USUARIO_ID)).isEmpty();
     }
 
     // -------------------------------------------------------------- cambio de rol

@@ -190,9 +190,9 @@ class UsuarioControllerPerfilTest {
     }
 
     @Test
-    void elEndpointDePruebaRespondeConElMensajeDeVerificacion() throws Exception {
+    void elEndpointDePruebaYaNoExiste() throws Exception {
         mockMvc.perform(get("/api/usuarios/prueba").principal((Principal) () -> CORREO_DEL_TOKEN))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Usuario autenticado correctamente"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
     }
 }
