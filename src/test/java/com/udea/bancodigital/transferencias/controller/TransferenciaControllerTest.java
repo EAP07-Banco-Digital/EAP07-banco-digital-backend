@@ -124,6 +124,38 @@ class TransferenciaControllerTest {
     }
 
     @Test
+    void unMontoConMasDeDosDecimalesDevuelve400SinLlegarAlServicio() throws Exception {
+        // La base guarda 2 decimales: aceptarlo redondearia el dinero en silencio.
+        transferir(solicitud("1000000001", "2000000001", "100.555"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("El monto admite máximo 13 dígitos enteros y 2 decimales"));
+
+        verifyNoInteractions(transferenciaService);
+    }
+
+    @Test
+    void unMontoMasGrandeQueLaColumnaDevuelve400EnLugarDe500() throws Exception {
+        transferir(solicitud("1000000001", "2000000001", "99999999999999.00"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(transferenciaService);
+    }
+
+    @Test
+    void unaDescripcionDeMasDe200CaracteresDevuelve400EnLugarDe500() throws Exception {
+        TransferenciaRequest request = solicitud("1000000001", "2000000001", "100.00");
+        request.setDescripcion("x".repeat(201));
+
+        transferir(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("La descripción no puede superar 200 caracteres"));
+
+        verifyNoInteractions(transferenciaService);
+    }
+
+    @Test
     void unMontoAusenteDevuelve400() throws Exception {
         transferir(solicitud("1000000001", "2000000001", null))
                 .andExpect(status().isBadRequest())

@@ -69,16 +69,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String email = jwtService.extraerEmail(token);
+        Long usuarioId = jwtService.extraerUsuarioId(token);
 
-        // El rol se lee de la base en cada peticion, no del claim del token:
-        // asi un cambio de rol (HU9) aplica sin esperar a que el token expire.
-        usuarioApi.obtenerRolPorEmail(email).ifPresent(rol -> {
+        // El token solo trae el id: correo y rol se leen de la base en cada
+        // peticion. Asi un cambio de rol (HU9) aplica sin esperar a que el token
+        // expire, y un cambio de correo (HU7) no deja la sesion sin dueno. El
+        // principal sigue siendo el correo vigente, que es lo que usan los
+        // controladores para identificar al usuario.
+        usuarioApi.obtenerIdentidadPorId(usuarioId).ifPresent(identidad -> {
 
             var autenticacion = new UsernamePasswordAuthenticationToken(
-                    email,
+                    identidad.email(),
                     null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + rol))
+                    List.of(new SimpleGrantedAuthority("ROLE_" + identidad.rol()))
             );
 
             SecurityContextHolder.getContext().setAuthentication(autenticacion);

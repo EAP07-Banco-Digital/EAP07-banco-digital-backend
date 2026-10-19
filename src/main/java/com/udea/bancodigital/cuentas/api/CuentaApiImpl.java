@@ -6,6 +6,7 @@ import com.udea.bancodigital.shared.exception.NegocioException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -26,13 +27,28 @@ public class CuentaApiImpl implements CuentaApi {
     @Override
     @Transactional(readOnly = true)
     public CuentaInfo obtenerInfoPorNumeroCuenta(String numeroCuenta) {
-        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
-                .orElseThrow(() -> new NegocioException(
-                        "DESTINATION_ACCOUNT_NOT_FOUND",
-                        "La cuenta " + numeroCuenta + " no existe",
-                        HttpStatus.NOT_FOUND
-                ));
+        return toInfo(cuentaRepository.findByNumeroCuenta(numeroCuenta)
+                .orElseThrow(() -> cuentaNoExiste(numeroCuenta)));
+    }
 
+    // MANDATORY: un bloqueo fuera de una transaccion se liberaria en cuanto
+    // termina la consulta y no protegeria nada; mejor fallar que creerse a salvo.
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public CuentaInfo bloquearPorNumeroCuenta(String numeroCuenta) {
+        return toInfo(cuentaRepository.findByNumeroCuentaForUpdate(numeroCuenta)
+                .orElseThrow(() -> cuentaNoExiste(numeroCuenta)));
+    }
+
+    private NegocioException cuentaNoExiste(String numeroCuenta) {
+        return new NegocioException(
+                "DESTINATION_ACCOUNT_NOT_FOUND",
+                "La cuenta " + numeroCuenta + " no existe",
+                HttpStatus.NOT_FOUND
+        );
+    }
+
+    private CuentaInfo toInfo(Cuenta cuenta) {
         return new CuentaInfo(
                 cuenta.getId(),
                 cuenta.getClienteId(),

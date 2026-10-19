@@ -61,6 +61,7 @@ class TransaccionApiImplTest {
                 .cuentaDestinoId(destinoId)
                 .tipoTransaccion(tipo)
                 .monto(monto)
+                .estado("EXITOSA")
                 .descripcion(descripcion)
                 .fechaHora(fecha)
                 .build();
@@ -93,6 +94,7 @@ class TransaccionApiImplTest {
         assertThat(enviada.getCuentaDestinoId()).isEqualTo(2L);
         assertThat(enviada.getTipoTransaccion()).isEqualTo(tipo);
         assertThat(enviada.getMonto()).isEqualByComparingTo("50000.00");
+        assertThat(enviada.getEstado()).isEqualTo("EXITOSA");
         assertThat(enviada.getDescripcion()).isEqualTo("Prueba");
         assertThat(enviada.getFechaHora()).isNotNull();
     }

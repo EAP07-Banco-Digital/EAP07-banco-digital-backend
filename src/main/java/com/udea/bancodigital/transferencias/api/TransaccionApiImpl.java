@@ -54,6 +54,7 @@ public class TransaccionApiImpl implements TransaccionApi {
                 .cuentaDestinoId(cuentaDestinoId)
                 .tipoTransaccion(tipo)
                 .monto(monto)
+                .estado("EXITOSA")
                 .descripcion(descripcion)
                 .fechaHora(OffsetDateTime.now())
                 .build();
