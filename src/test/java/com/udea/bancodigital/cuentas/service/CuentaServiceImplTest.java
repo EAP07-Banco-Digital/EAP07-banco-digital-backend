@@ -2,6 +2,7 @@ package com.udea.bancodigital.cuentas.service;
 
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
+import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
 import com.udea.bancodigital.cuentas.entity.Cuenta;
 import com.udea.bancodigital.cuentas.entity.TipoCuenta;
 import com.udea.bancodigital.cuentas.repository.CuentaRepository;
@@ -21,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -263,6 +265,70 @@ class CuentaServiceImplTest {
                         assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
 
         verify(cuentaRepository, never()).findByNumeroCuenta(anyString());
+    }
+
+    // ------------------------------------------------------------- HU11 listado
+
+    @Test
+    void listarCuentasDelClienteDevuelveLosDatosGeneralesDeCadaCuenta() {
+        given(cuentaRepository.findByClienteIdOrderByFechaAperturaDesc(CLIENTE_ID))
+                .willReturn(List.of(
+                        cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA"),
+                        cuenta(2L, CLIENTE_ID, "1000000002", tipo("CORRIENTE"), "0.00", "BLOQUEADA")));
+
+        List<CuentaResumenResponse> respuesta = cuentaService.listarCuentas(CLIENTE_ID, null);
+
+        assertThat(respuesta).hasSize(2);
+        assertThat(respuesta.get(0).getId()).isEqualTo(1L);
+        assertThat(respuesta.get(0).getNumeroCuenta()).isEqualTo(NUMERO);
+        assertThat(respuesta.get(0).getTipoCuenta()).isEqualTo("AHORROS");
+        assertThat(respuesta.get(0).getEstado()).isEqualTo("ACTIVA");
+        assertThat(respuesta.get(0).getFechaApertura())
+                .isEqualTo(OffsetDateTime.parse("2026-09-20T10:00:00-05:00"));
+        assertThat(respuesta.get(1).getTipoCuenta()).isEqualTo("CORRIENTE");
+        assertThat(respuesta.get(1).getEstado()).isEqualTo("BLOQUEADA");
+    }
+
+    @Test
+    void listarCuentasDeUnClienteSinCuentasDevuelveListaVacia() {
+        given(cuentaRepository.findByClienteIdOrderByFechaAperturaDesc(CLIENTE_ID))
+                .willReturn(List.of());
+
+        List<CuentaResumenResponse> respuesta = cuentaService.listarCuentas(CLIENTE_ID, null);
+
+        assertThat(respuesta).isEmpty();
+    }
+
+    @Test
+    void listarCuentasConElMismoClienteIdSolicitadoFunciona() {
+        given(cuentaRepository.findByClienteIdOrderByFechaAperturaDesc(CLIENTE_ID))
+                .willReturn(List.of(cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA")));
+
+        List<CuentaResumenResponse> respuesta = cuentaService.listarCuentas(CLIENTE_ID, CLIENTE_ID);
+
+        assertThat(respuesta).hasSize(1);
+    }
+
+    @Test
+    void listarCuentasDeOtroClienteFallaCon403() {
+        assertThatThrownBy(() -> cuentaService.listarCuentas(CLIENTE_ID, 99L))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("FORBIDDEN");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                });
+
+        verifyNoInteractions(cuentaRepository);
+    }
+
+    @Test
+    void listarCuentasSinAutenticacionFallaCon401() {
+        assertThatThrownBy(() -> cuentaService.listarCuentas(null, null))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("UNAUTHORIZED");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                });
+
+        verifyNoInteractions(cuentaRepository);
     }
 
 }
