@@ -2,6 +2,7 @@ package com.udea.bancodigital.cuentas.service;
 
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
+import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
 import com.udea.bancodigital.cuentas.dto.HistorialTransaccionResponse;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaResponse;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -125,6 +127,29 @@ public class CuentaServiceImpl implements CuentaService {
 
         // HU6 - Criterio 4: Si está BLOQUEADA, la consulta retorna saldo + estado con HTTP 200
         return mapToResponse(cuenta);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CuentaResumenResponse> listarCuentas(Long clienteId, Long clienteIdSolicitado) {
+        if (clienteId == null) {
+            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+        }
+
+        // HU11 - Escenario 3: un cliente no puede consultar las cuentas de otro
+        if (clienteIdSolicitado != null && !clienteIdSolicitado.equals(clienteId)) {
+            throw new NegocioException(
+                    "FORBIDDEN",
+                    "No tiene permisos para consultar las cuentas de otro cliente",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+
+        // HU11 - Escenarios 1 y 2: lista con cuentas, o lista vacía (siempre HTTP 200)
+        return cuentaRepository.findByClienteIdOrderByFechaAperturaDesc(clienteId)
+                .stream()
+                .map(this::mapToResumen)
+                .toList();
     }
 
     @Override
@@ -381,6 +406,16 @@ public class CuentaServiceImpl implements CuentaService {
                 .numeroCuenta(cuenta.getNumeroCuenta())
                 .tipoCuenta(cuenta.getTipoCuenta().getNombre())
                 .saldoDisponible(cuenta.getSaldoDisponible())
+                .estado(cuenta.getEstado().getNombre())
+                .fechaApertura(cuenta.getFechaApertura())
+                .build();
+    }
+
+    private CuentaResumenResponse mapToResumen(Cuenta cuenta) {
+        return CuentaResumenResponse.builder()
+                .id(cuenta.getId())
+                .numeroCuenta(cuenta.getNumeroCuenta())
+                .tipoCuenta(cuenta.getTipoCuenta().getNombre())
                 .estado(cuenta.getEstado().getNombre())
                 .fechaApertura(cuenta.getFechaApertura())
                 .build();

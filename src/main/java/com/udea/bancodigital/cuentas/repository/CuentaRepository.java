@@ -8,12 +8,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
 
     Optional<Cuenta> findByNumeroCuenta(String numeroCuenta);
 
     boolean existsByNumeroCuenta(String numeroCuenta);
+
+    List<Cuenta> findByClienteIdOrderByFechaAperturaDesc(Long clienteId);
 
     // SELECT ... FOR UPDATE: la fila queda bloqueada hasta que termine la
     // transaccion, asi dos operaciones sobre la misma cuenta no leen el mismo

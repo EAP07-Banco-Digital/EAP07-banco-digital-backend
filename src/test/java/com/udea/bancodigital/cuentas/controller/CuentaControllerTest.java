@@ -3,6 +3,7 @@ package com.udea.bancodigital.cuentas.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
+import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
 import com.udea.bancodigital.cuentas.service.CuentaService;
 import com.udea.bancodigital.shared.config.CustomAccessDeniedHandler;
 import com.udea.bancodigital.shared.config.CustomAuthEntryPoint;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -179,5 +181,41 @@ class CuentaControllerTest {
         mockMvc.perform(get("/api/v1/cuentas/{numero}/saldo", "9999999999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("ACCOUNT_NOT_FOUND"));
+    }
+
+    @Test
+    void listarCuentas_conCuentas_retorna200ConLista() throws Exception {
+        CuentaResumenResponse cuenta = CuentaResumenResponse.builder()
+                .id(1L).numeroCuenta(NUMERO).tipoCuenta("AHORROS")
+                .estado("ACTIVA").fechaApertura(OffsetDateTime.now()).build();
+        given(usuarioApi.obtenerIdClientePorEmail(CORREO)).willReturn(CLIENTE_ID);
+        given(cuentaService.listarCuentas(CLIENTE_ID, null)).willReturn(List.of(cuenta));
+
+        mockMvc.perform(get("/api/v1/cuentas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].numeroCuenta").value(NUMERO))
+                .andExpect(jsonPath("$[0].estado").value("ACTIVA"));
+    }
+
+    @Test
+    void listarCuentas_sinCuentas_retorna200ListaVacia() throws Exception {
+        given(usuarioApi.obtenerIdClientePorEmail(CORREO)).willReturn(CLIENTE_ID);
+        given(cuentaService.listarCuentas(CLIENTE_ID, null)).willReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/cuentas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void listarCuentas_deOtroCliente_retorna403Forbidden() throws Exception {
+        given(usuarioApi.obtenerIdClientePorEmail(CORREO)).willReturn(CLIENTE_ID);
+        given(cuentaService.listarCuentas(CLIENTE_ID, 99L))
+                .willThrow(new NegocioException("FORBIDDEN", "No tiene permisos", HttpStatus.FORBIDDEN));
+
+        mockMvc.perform(get("/api/v1/cuentas").param("clienteId", "99"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
     }
 }
