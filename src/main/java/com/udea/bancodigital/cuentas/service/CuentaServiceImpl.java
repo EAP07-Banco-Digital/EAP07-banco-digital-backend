@@ -58,12 +58,14 @@ public class CuentaServiceImpl implements CuentaService {
         String tipoNombre = request.getTipoCuenta().toUpperCase().trim();
 
         // 1. Validar tipo de cuenta válido (AHORROS o CORRIENTE)
-        TipoCuenta tipoCuenta = tipoCuentaRepository.findByNombreIgnoreCase(tipoNombre)
-                .orElseThrow(() -> new NegocioException(
-                        "INVALID_ACCOUNT_TYPE",
-                        "El tipo de cuenta especificado no es válido: " + request.getTipoCuenta(),
-                        HttpStatus.BAD_REQUEST
-                ));
+        TipoCuenta tipoCuenta = tipoCuentaRepository.findByNombreIgnoreCase(tipoNombre).orElse(null);
+        if (tipoCuenta == null) {
+            throw new NegocioException(
+                    "INVALID_ACCOUNT_TYPE",
+                    "El tipo de cuenta especificado no es válido: " + request.getTipoCuenta(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
 
         // 2. Validar si ya posee una cuenta ACTIVA de ese tipo (HU5 - Criterio 3)
         boolean yaTieneCuentaActiva = cuentaRepository.existsCuentaActivaPorClienteYTipo(clienteId, tipoNombre);
@@ -76,12 +78,14 @@ public class CuentaServiceImpl implements CuentaService {
         }
 
         // 3. Obtener el Estado "ACTIVA"
-        Estado estadoActiva = estadoRepository.findByNombreIgnoreCase("ACTIVA")
-                .orElseThrow(() -> new NegocioException(
-                        "INTERNAL_ERROR",
-                        "Estado 'ACTIVA' no configurado en el sistema",
-                        HttpStatus.INTERNAL_SERVER_ERROR
-                ));
+        Estado estadoActiva = estadoRepository.findByNombreIgnoreCase("ACTIVA").orElse(null);
+        if (estadoActiva == null) {
+            throw new NegocioException(
+                    "INTERNAL_ERROR",
+                    "Estado 'ACTIVA' no configurado en el sistema",
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
 
         // 4. Generar número único de cuenta
         String numeroCuentaUnico = generarNumeroCuentaUnico();
@@ -109,12 +113,14 @@ public class CuentaServiceImpl implements CuentaService {
         }
 
         // 1. Buscar cuenta o retornar 404
-        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
-                .orElseThrow(() -> new NegocioException(
-                        "ACCOUNT_NOT_FOUND",
-                        "La cuenta consultada no existe",
-                        HttpStatus.NOT_FOUND
-                ));
+        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta).orElse(null);
+        if (cuenta == null) {
+            throw new NegocioException(
+                    "ACCOUNT_NOT_FOUND",
+                    "La cuenta consultada no existe",
+                    HttpStatus.NOT_FOUND
+            );
+        }
 
         // 2. Verificar titularidad (HU6 - Criterio 2)
         if (!cuenta.getClienteId().equals(clienteId)) {
@@ -155,40 +161,9 @@ public class CuentaServiceImpl implements CuentaService {
     @Override
     @Transactional
     public OperacionCuentaResponse registrarCredito(Long clienteId, String numeroCuenta, OperacionCuentaRequest request) {
-        if (clienteId == null) {
-            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
-        }
-
-        if (request == null || request.getMonto() == null || request.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new NegocioException(
-                    "INVALID_AMOUNT",
-                    "El monto del crédito debe ser mayor a cero",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
-
-        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
-                .orElseThrow(() -> new NegocioException(
-                        "ACCOUNT_NOT_FOUND",
-                        "La cuenta consultada no existe",
-                        HttpStatus.NOT_FOUND
-                ));
-
-        if (!cuenta.getClienteId().equals(clienteId)) {
-            throw new NegocioException(
-                    "FORBIDDEN",
-                    "No tiene permisos para operar sobre esta cuenta",
-                    HttpStatus.FORBIDDEN
-            );
-        }
-
-        if (!"ACTIVA".equalsIgnoreCase(cuenta.getEstado().getNombre())) {
-            throw new NegocioException(
-                    "ACCOUNT_NOT_ACTIVE",
-                    "La cuenta se encuentra bloqueada o inactiva",
-                    HttpStatus.CONFLICT
-            );
-        }
+        validarAutenticado(clienteId);
+        validarMonto(request, "crédito");
+        Cuenta cuenta = obtenerCuentaActiva(clienteId, numeroCuenta);
 
         BigDecimal nuevoSaldo = cuenta.getSaldoDisponible().add(request.getMonto());
         cuenta.setSaldoDisponible(nuevoSaldo);
@@ -215,40 +190,9 @@ public class CuentaServiceImpl implements CuentaService {
     @Override
     @Transactional
     public OperacionCuentaResponse registrarDebito(Long clienteId, String numeroCuenta, OperacionCuentaRequest request) {
-        if (clienteId == null) {
-            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
-        }
-
-        if (request == null || request.getMonto() == null || request.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new NegocioException(
-                    "INVALID_AMOUNT",
-                    "El monto del débito debe ser mayor a cero",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
-
-        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
-                .orElseThrow(() -> new NegocioException(
-                        "ACCOUNT_NOT_FOUND",
-                        "La cuenta consultada no existe",
-                        HttpStatus.NOT_FOUND
-                ));
-
-        if (!cuenta.getClienteId().equals(clienteId)) {
-            throw new NegocioException(
-                    "FORBIDDEN",
-                    "No tiene permisos para operar sobre esta cuenta",
-                    HttpStatus.FORBIDDEN
-            );
-        }
-
-        if (!"ACTIVA".equalsIgnoreCase(cuenta.getEstado().getNombre())) {
-            throw new NegocioException(
-                    "ACCOUNT_NOT_ACTIVE",
-                    "La cuenta se encuentra bloqueada o inactiva",
-                    HttpStatus.CONFLICT
-            );
-        }
+        validarAutenticado(clienteId);
+        validarMonto(request, "débito");
+        Cuenta cuenta = obtenerCuentaActiva(clienteId, numeroCuenta);
 
         if (cuenta.getSaldoDisponible().compareTo(request.getMonto()) < 0) {
             throw new NegocioException(
@@ -295,12 +239,14 @@ public class CuentaServiceImpl implements CuentaService {
             throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
         }
 
-        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
-                .orElseThrow(() -> new NegocioException(
-                        "ACCOUNT_NOT_FOUND",
-                        "La cuenta consultada no existe",
-                        HttpStatus.NOT_FOUND
-                ));
+        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta).orElse(null);
+        if (cuenta == null) {
+            throw new NegocioException(
+                    "ACCOUNT_NOT_FOUND",
+                    "La cuenta consultada no existe",
+                    HttpStatus.NOT_FOUND
+            );
+        }
 
         if (!cuenta.getClienteId().equals(clienteId)) {
             throw new NegocioException(
@@ -342,53 +288,97 @@ public class CuentaServiceImpl implements CuentaService {
                 pageable
         );
 
-        return transaccionesPage.map(t -> {
-            String tipoMovimiento;
-            if ("CREDITO".equalsIgnoreCase(t.tipoTransaccion())) {
-                tipoMovimiento = "ENTRADA";
-            } else if ("DEBITO".equalsIgnoreCase(t.tipoTransaccion())) {
-                tipoMovimiento = "SALIDA";
-            } else if (cuenta.getId().equals(t.cuentaOrigenId())) {
-                tipoMovimiento = "SALIDA";
-            } else {
-                tipoMovimiento = "ENTRADA";
-            }
-
-            String numeroOrigen = null;
-            if (t.cuentaOrigenId() != null) {
-                if (t.cuentaOrigenId().equals(cuenta.getId())) {
-                    numeroOrigen = cuenta.getNumeroCuenta();
-                } else {
-                    numeroOrigen = cuentaRepository.findById(t.cuentaOrigenId())
-                            .map(Cuenta::getNumeroCuenta)
-                            .orElse(null);
-                }
-            }
-
-            String numeroDestino = null;
-            if (t.cuentaDestinoId() != null) {
-                if (t.cuentaDestinoId().equals(cuenta.getId())) {
-                    numeroDestino = cuenta.getNumeroCuenta();
-                } else {
-                    numeroDestino = cuentaRepository.findById(t.cuentaDestinoId())
-                            .map(Cuenta::getNumeroCuenta)
-                            .orElse(null);
-                }
-            }
-
-            return HistorialTransaccionResponse.builder()
-                    .transaccionId(t.id())
-                    .fechaHora(t.fechaHora())
-                    .tipoTransaccion(t.tipoTransaccion())
-                    .monto(t.monto())
-                    .descripcion(t.descripcion())
-                    .numeroCuentaOrigen(numeroOrigen)
-                    .numeroCuentaDestino(numeroDestino)
-                    .tipoMovimiento(tipoMovimiento)
-                    .build();
-        });
+        return transaccionesPage.map(t -> mapearTransaccion(cuenta, t));
     }
 
+
+    private HistorialTransaccionResponse mapearTransaccion(Cuenta cuenta, TransaccionApi.TransaccionDetalle t) {
+        String tipoMovimiento;
+        if ("CREDITO".equalsIgnoreCase(t.tipoTransaccion())) {
+            tipoMovimiento = "ENTRADA";
+        } else if ("DEBITO".equalsIgnoreCase(t.tipoTransaccion())) {
+            tipoMovimiento = "SALIDA";
+        } else if (cuenta.getId().equals(t.cuentaOrigenId())) {
+            tipoMovimiento = "SALIDA";
+        } else {
+            tipoMovimiento = "ENTRADA";
+        }
+
+        String numeroOrigen = null;
+        if (t.cuentaOrigenId() != null) {
+            if (t.cuentaOrigenId().equals(cuenta.getId())) {
+                numeroOrigen = cuenta.getNumeroCuenta();
+            } else {
+                numeroOrigen = cuentaRepository.findById(t.cuentaOrigenId())
+                        .map(Cuenta::getNumeroCuenta)
+                        .orElse(null);
+            }
+        }
+
+        String numeroDestino = null;
+        if (t.cuentaDestinoId() != null) {
+            if (t.cuentaDestinoId().equals(cuenta.getId())) {
+                numeroDestino = cuenta.getNumeroCuenta();
+            } else {
+                numeroDestino = cuentaRepository.findById(t.cuentaDestinoId())
+                        .map(Cuenta::getNumeroCuenta)
+                        .orElse(null);
+            }
+        }
+
+        return HistorialTransaccionResponse.builder()
+                .transaccionId(t.id())
+                .fechaHora(t.fechaHora())
+                .tipoTransaccion(t.tipoTransaccion())
+                .monto(t.monto())
+                .descripcion(t.descripcion())
+                .numeroCuentaOrigen(numeroOrigen)
+                .numeroCuentaDestino(numeroDestino)
+                .tipoMovimiento(tipoMovimiento)
+                .build();
+    }
+
+    private void validarAutenticado(Long clienteId) {
+        if (clienteId == null) {
+            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    private void validarMonto(OperacionCuentaRequest request, String tipoOperacion) {
+        if (request == null || request.getMonto() == null || request.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new NegocioException(
+                    "INVALID_AMOUNT",
+                    "El monto del " + tipoOperacion + " debe ser mayor a cero",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+    }
+
+    private Cuenta obtenerCuentaActiva(Long clienteId, String numeroCuenta) {
+        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta).orElse(null);
+        if (cuenta == null) {
+            throw new NegocioException(
+                    "ACCOUNT_NOT_FOUND",
+                    "La cuenta consultada no existe",
+                    HttpStatus.NOT_FOUND
+            );
+        }
+        if (!cuenta.getClienteId().equals(clienteId)) {
+            throw new NegocioException(
+                    "FORBIDDEN",
+                    "No tiene permisos para operar sobre esta cuenta",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+        if (!"ACTIVA".equalsIgnoreCase(cuenta.getEstado().getNombre())) {
+            throw new NegocioException(
+                    "ACCOUNT_NOT_ACTIVE",
+                    "La cuenta se encuentra bloqueada o inactiva",
+                    HttpStatus.CONFLICT
+            );
+        }
+        return cuenta;
+    }
 
     private String generarNumeroCuentaUnico() {
         String numero;
