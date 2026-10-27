@@ -51,9 +51,7 @@ public class CuentaServiceImpl implements CuentaService {
     @Override
     @Transactional
     public CuentaResponse solicitarAperturaCuenta(Long clienteId, AperturaCuentaRequest request) {
-        if (clienteId == null) {
-            throw new NegocioException(CodigosError.UNAUTHORIZED, "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
-        }
+        validarAutenticado(clienteId);
 
         String tipoNombre = request.getTipoCuenta().toUpperCase().trim();
 
@@ -108,9 +106,7 @@ public class CuentaServiceImpl implements CuentaService {
     @Override
     @Transactional(readOnly = true)
     public CuentaResponse consultarSaldo(Long clienteId, String numeroCuenta) {
-        if (clienteId == null) {
-            throw new NegocioException(CodigosError.UNAUTHORIZED, "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
-        }
+        validarAutenticado(clienteId);
 
         // 1. Buscar cuenta o retornar 404
         Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta).orElse(null);
@@ -138,9 +134,7 @@ public class CuentaServiceImpl implements CuentaService {
     @Override
     @Transactional(readOnly = true)
     public List<CuentaResumenResponse> listarCuentas(Long clienteId, Long clienteIdSolicitado) {
-        if (clienteId == null) {
-            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
-        }
+        validarAutenticado(clienteId);
 
         // HU11 - Escenario 3: un cliente no puede consultar las cuentas de otro
         if (clienteIdSolicitado != null && !clienteIdSolicitado.equals(clienteId)) {
@@ -235,9 +229,7 @@ public class CuentaServiceImpl implements CuentaService {
             int page,
             int size
     ) {
-        if (clienteId == null) {
-            throw new NegocioException("UNAUTHORIZED", "Usuario no autenticado", HttpStatus.UNAUTHORIZED);
-        }
+        validarAutenticado(clienteId);
 
         Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta).orElse(null);
         if (cuenta == null) {
