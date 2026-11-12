@@ -1,5 +1,7 @@
 package com.udea.bancodigital.usuarios.api;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -36,4 +38,24 @@ public interface UsuarioApi {
      * @return la identidad, o vacío si el usuario no existe o no está activo
      */
     Optional<Identidad> obtenerIdentidadPorId(Long usuarioId);
+
+    /**
+     * Datos de un cliente que otros modulos pueden mostrar (HU20).
+     */
+    record ClienteResumen(
+            Long clienteId,
+            String nombreCompleto,
+            String tipoDocumento,
+            String numeroDocumento,
+            String email
+    ) {}
+
+    /**
+     * HU20: datos de varios clientes en una sola consulta, para no buscar uno
+     * por uno al armar un reporte.
+     *
+     * @param clienteIds ids de cliente (no de usuario)
+     * @return mapa clienteId -> datos; los ids que no existen no aparecen
+     */
+    Map<Long, ClienteResumen> obtenerClientesPorIds(Collection<Long> clienteIds);
 }

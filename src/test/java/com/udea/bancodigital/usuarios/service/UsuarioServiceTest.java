@@ -33,7 +33,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -659,5 +662,29 @@ class UsuarioServiceTest {
                 });
 
         verify(usuarioRepository, never()).save(any());
+    }
+
+    // ------------------------------------------------------------- HU20 reportes
+
+    @Test
+    void obtenerClientesPorIdsDevuelveLosDatosVisiblesEnUnaSolaConsulta() {
+        given(clienteRepository.findAllById(Set.of(CLIENTE_ID))).willReturn(List.of(clientePersistido()));
+
+        Map<Long, UsuarioApi.ClienteResumen> clientes = usuarioService.obtenerClientesPorIds(Set.of(CLIENTE_ID));
+
+        assertThat(clientes).containsOnlyKeys(CLIENTE_ID);
+        UsuarioApi.ClienteResumen cliente = clientes.get(CLIENTE_ID);
+        assertThat(cliente.nombreCompleto()).isEqualTo("Juan Manuel Tabares");
+        assertThat(cliente.tipoDocumento()).isEqualTo("CC");
+        assertThat(cliente.numeroDocumento()).isEqualTo("1017654321");
+        assertThat(cliente.email()).isEqualTo(CORREO);
+    }
+
+    @Test
+    void obtenerClientesPorIdsSinIdsNoConsultaLaBase() {
+        assertThat(usuarioService.obtenerClientesPorIds(Set.of())).isEmpty();
+        assertThat(usuarioService.obtenerClientesPorIds(null)).isEmpty();
+
+        verifyNoInteractions(clienteRepository);
     }
 }

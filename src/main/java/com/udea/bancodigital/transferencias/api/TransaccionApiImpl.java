@@ -9,6 +9,7 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Locale;
 import java.util.List;
 
 /**
@@ -125,6 +128,54 @@ public class TransaccionApiImpl implements TransaccionApi {
     public BigDecimal calcularEfectoNetoDesde(Long cuentaId, OffsetDateTime desde) {
         BigDecimal neto = transaccionRepository.sumarEfectoNetoDesde(cuentaId, desde);
         return neto != null ? neto : BigDecimal.ZERO;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OperacionInfo> buscarOperaciones(
+            OffsetDateTime desde,
+            OffsetDateTime hasta,
+            Collection<Long> cuentaIds,
+            String estado
+    ) {
+        if (cuentaIds != null && cuentaIds.isEmpty()) {
+            return List.of();
+        }
+        Specification<Transaccion> spec = (root, query, cb) -> {
+            // El tipo viene en la misma consulta: sin el fetch habria una
+            // consulta extra para leer el nombre del tipo.
+            if (Long.class != query.getResultType() && long.class != query.getResultType()) {
+                root.fetch("tipoTransaccion");
+            }
+            List<Predicate> predicados = new ArrayList<>();
+            if (desde != null) {
+                predicados.add(cb.greaterThanOrEqualTo(root.get("fechaHora"), desde));
+            }
+            if (hasta != null) {
+                predicados.add(cb.lessThan(root.get("fechaHora"), hasta));
+            }
+            if (cuentaIds != null) {
+                predicados.add(cb.or(
+                        root.get("cuentaOrigenId").in(cuentaIds),
+                        root.get("cuentaDestinoId").in(cuentaIds)));
+            }
+            if (estado != null && !estado.isBlank()) {
+                predicados.add(cb.equal(cb.upper(root.get("estado")), estado.trim().toUpperCase(Locale.ROOT)));
+            }
+            return cb.and(predicados.toArray(new Predicate[0]));
+        };
+
+        return transaccionRepository.findAll(spec, Sort.by("fechaHora", "id")).stream()
+                .map(t -> new OperacionInfo(
+                        t.getId(),
+                        t.getCuentaOrigenId(),
+                        t.getCuentaDestinoId(),
+                        t.getTipoTransaccion().getNombre(),
+                        t.getMonto(),
+                        t.getEstado(),
+                        t.getFechaHora(),
+                        t.getDescripcion()))
+                .toList();
     }
 
     private static TransaccionDetalle aDetalle(Transaccion t) {

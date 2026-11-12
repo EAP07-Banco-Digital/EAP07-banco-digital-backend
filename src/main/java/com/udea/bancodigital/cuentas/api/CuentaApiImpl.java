@@ -10,6 +10,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Implementación de la API pública del módulo de Cuentas.
@@ -69,5 +73,33 @@ public class CuentaApiImpl implements CuentaApi {
                 ));
         cuenta.setSaldoDisponible(nuevoSaldo);
         cuentaRepository.save(cuenta);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CuentaInfo> buscarCuentas(Long clienteId, String numeroCuenta) {
+        List<Cuenta> cuentas;
+        if (numeroCuenta != null) {
+            cuentas = cuentaRepository.findByNumeroCuenta(numeroCuenta)
+                    .filter(cuenta -> clienteId == null || clienteId.equals(cuenta.getClienteId()))
+                    .map(List::of)
+                    .orElse(List.of());
+        } else if (clienteId != null) {
+            cuentas = cuentaRepository.findByClienteIdOrderByFechaAperturaDesc(clienteId);
+        } else {
+            cuentas = List.of();
+        }
+        return cuentas.stream().map(this::toInfo).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, CuentaInfo> obtenerInfoPorIds(Collection<Long> cuentaIds) {
+        Map<Long, CuentaInfo> cuentas = new HashMap<>();
+        if (cuentaIds == null || cuentaIds.isEmpty()) {
+            return cuentas;
+        }
+        cuentaRepository.findByIdIn(cuentaIds).forEach(cuenta -> cuentas.put(cuenta.getId(), toInfo(cuenta)));
+        return cuentas;
     }
 }
