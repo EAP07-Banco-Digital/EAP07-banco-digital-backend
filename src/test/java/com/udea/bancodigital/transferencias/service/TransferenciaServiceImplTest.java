@@ -67,9 +67,9 @@ class TransferenciaServiceImplTest {
 
     private void cuentasListasParaTransferir() {
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA")));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA")));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
                 .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
     }
@@ -141,9 +141,9 @@ class TransferenciaServiceImplTest {
         request.setNumeroCuentaOrigen(NUMERO_DESTINO);
         request.setNumeroCuentaDestino(NUMERO_ORIGEN);
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willReturn(info(CUENTA_DESTINO, CLIENTE_ID, NUMERO_DESTINO, "500000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_DESTINO, CLIENTE_ID, NUMERO_DESTINO, "500000.00", "ACTIVA")));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, 99L, NUMERO_ORIGEN, "150000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, 99L, NUMERO_ORIGEN, "150000.00", "ACTIVA")));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
                 .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
         saldoActualizadoEnLasDosCuentas();
@@ -174,7 +174,7 @@ class TransferenciaServiceImplTest {
     @Test
     void transferenciaDesdeUnaCuentaAjenaFallaCon403() {
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, 99L, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, 99L, NUMERO_ORIGEN, "500000.00", "ACTIVA")));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
                 .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
@@ -190,7 +190,7 @@ class TransferenciaServiceImplTest {
     @Test
     void transferenciaDesdeUnaCuentaBloqueadaFallaCon409() {
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "BLOQUEADA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "BLOQUEADA")));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
                 .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
@@ -204,9 +204,9 @@ class TransferenciaServiceImplTest {
     @Test
     void transferenciaHaciaUnaCuentaBloqueadaFallaCon409() {
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA")));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "BLOQUEADA"));
+                .willReturn(Optional.of(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "BLOQUEADA")));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
                 .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
@@ -220,9 +220,9 @@ class TransferenciaServiceImplTest {
     @Test
     void transferenciaSinSaldoSuficienteFallaCon400YTocaNingunSaldo() {
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "50000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "50000.00", "ACTIVA")));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA")));
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
                 .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
@@ -241,9 +241,9 @@ class TransferenciaServiceImplTest {
         TransferenciaRequest request = solicitud();
         request.setMonto(new BigDecimal("500000.00"));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA")));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA")));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
                 .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
         saldoActualizadoEnLasDosCuentas();
@@ -259,9 +259,9 @@ class TransferenciaServiceImplTest {
         TransferenciaRequest request = solicitud();
         request.setMonto(new BigDecimal("100.555"));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "1000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "1000.00", "ACTIVA")));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "0.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "0.00", "ACTIVA")));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA"))
                 .willReturn(Optional.of(new TipoTransaccion(1L, "TRANSFERENCIA")));
         saldoActualizadoEnLasDosCuentas();
@@ -284,21 +284,63 @@ class TransferenciaServiceImplTest {
         verifyNoInteractions(cuentaApi, transaccionRepository, tipoTransaccionRepository);
     }
 
+    // --------------------------------------------- DEF-HU12-07 cuenta inexistente
+
     @Test
-    void transferenciaHaciaUnaCuentaInexistentePropagaElErrorYTocaNingunSaldo() {
+    void transferenciaHaciaUnDestinoInexistenteRespondeDestinationAccountNotFound() {
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
-        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willThrow(new NegocioException("DESTINATION_ACCOUNT_NOT_FOUND",
-                        "La cuenta " + NUMERO_DESTINO + " no existe", HttpStatus.NOT_FOUND));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA")));
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
                 .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("DESTINATION_ACCOUNT_NOT_FOUND");
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
                     assertThat(excepcion.getMessage()).contains(NUMERO_DESTINO);
                 });
 
         verify(cuentaApi, never()).actualizarSaldo(anyLong(), any());
+        verify(transaccionRepository, never()).save(any(Transaccion.class));
+    }
+
+    @Test
+    void transferenciaDesdeUnOrigenInexistenteRespondeSourceAccountNotFoundYNoDestino() {
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN)).willReturn(Optional.empty());
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
+                .willReturn(Optional.of(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA")));
+
+        assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("SOURCE_ACCOUNT_NOT_FOUND");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+                    assertThat(excepcion.getMessage()).contains(NUMERO_ORIGEN);
+                });
+
+        verify(cuentaApi, never()).actualizarSaldo(anyLong(), any());
+        verify(transaccionRepository, never()).save(any(Transaccion.class));
+    }
+
+    @Test
+    void siNoExisteNingunaDeLasDosSeReportaPrimeroElOrigen() {
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN)).willReturn(Optional.empty());
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion ->
+                        assertThat(excepcion.getErrorCode()).isEqualTo("SOURCE_ACCOUNT_NOT_FOUND"));
+    }
+
+    @Test
+    void conOrigenAjenoYDestinoInexistenteGanaEl403YNoSeRevelaElDestino() {
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, 99L, NUMERO_ORIGEN, "500000.00", "ACTIVA")));
+        given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("FORBIDDEN");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                });
     }
 
     @Test
@@ -307,9 +349,9 @@ class TransferenciaServiceImplTest {
         // ya se habian escrito. Lo que los revierte es el @Transactional del
         // metodo, no esta logica: aqui solo se constata el orden de las operaciones.
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_ORIGEN))
-                .willReturn(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_ORIGEN, CLIENTE_ID, NUMERO_ORIGEN, "500000.00", "ACTIVA")));
         given(cuentaApi.bloquearPorNumeroCuenta(NUMERO_DESTINO))
-                .willReturn(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA"));
+                .willReturn(Optional.of(info(CUENTA_DESTINO, 99L, NUMERO_DESTINO, "150000.00", "ACTIVA")));
         given(tipoTransaccionRepository.findByNombreIgnoreCase("TRANSFERENCIA")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> transferenciaService.realizarTransferencia(CLIENTE_ID, solicitud()))

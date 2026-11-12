@@ -69,7 +69,7 @@ class CuentaApiImplTest {
         given(cuentaRepository.findByNumeroCuenta(NUMERO))
                 .willReturn(Optional.of(cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA")));
 
-        CuentaApi.CuentaInfo info = cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO);
+        CuentaApi.CuentaInfo info = cuentaApi.obtenerInfoPorNumeroCuenta(NUMERO).orElseThrow();
 
         assertThat(info.id()).isEqualTo(1L);
         assertThat(info.clienteId()).isEqualTo(CLIENTE_ID);
@@ -79,15 +79,12 @@ class CuentaApiImplTest {
     }
 
     @Test
-    void obtenerInfoDeUnaCuentaInexistenteFallaCon404IndicandoElNumero() {
+    void obtenerInfoDeUnaCuentaInexistenteDevuelveVacioYNoAsumeQueEraElDestino() {
+        // DEF-HU12-07: la API no sabe si la cuenta era origen o destino; el
+        // error lo decide quien llama.
         given(cuentaRepository.findByNumeroCuenta("9999999999")).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cuentaApi.obtenerInfoPorNumeroCuenta("9999999999"))
-                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
-                    assertThat(excepcion.getErrorCode()).isEqualTo("DESTINATION_ACCOUNT_NOT_FOUND");
-                    assertThat(excepcion.getMessage()).contains("9999999999");
-                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-                });
+        assertThat(cuentaApi.obtenerInfoPorNumeroCuenta("9999999999")).isEmpty();
     }
 
     @Test
@@ -95,7 +92,7 @@ class CuentaApiImplTest {
         given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO))
                 .willReturn(Optional.of(cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA")));
 
-        CuentaApi.CuentaInfo info = cuentaApi.bloquearPorNumeroCuenta(NUMERO);
+        CuentaApi.CuentaInfo info = cuentaApi.bloquearPorNumeroCuenta(NUMERO).orElseThrow();
 
         assertThat(info.id()).isEqualTo(1L);
         assertThat(info.saldoDisponible()).isEqualByComparingTo("500000.00");
@@ -103,15 +100,10 @@ class CuentaApiImplTest {
     }
 
     @Test
-    void bloquearUnaCuentaInexistenteFallaCon404IndicandoElNumero() {
+    void bloquearUnaCuentaInexistenteDevuelveVacio() {
         given(cuentaRepository.findByNumeroCuentaForUpdate("9999999999")).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cuentaApi.bloquearPorNumeroCuenta("9999999999"))
-                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
-                    assertThat(excepcion.getErrorCode()).isEqualTo("DESTINATION_ACCOUNT_NOT_FOUND");
-                    assertThat(excepcion.getMessage()).contains("9999999999");
-                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-                });
+        assertThat(cuentaApi.bloquearPorNumeroCuenta("9999999999")).isEmpty();
     }
 
     @Test

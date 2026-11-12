@@ -47,7 +47,7 @@ public class TransferenciaController {
             @ApiResponse(responseCode = "400", description = "Datos inválidos (ej. saldo insuficiente, misma cuenta).", content = @Content),
             @ApiResponse(responseCode = "401", description = "No autenticado. Se requiere token JWT.", content = @Content),
             @ApiResponse(responseCode = "403", description = "La cuenta de origen no pertenece al cliente.", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Cuenta de destino (u origen) no encontrada.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "La cuenta de origen (SOURCE_ACCOUNT_NOT_FOUND) o la de destino (DESTINATION_ACCOUNT_NOT_FOUND) no existe.", content = @Content),
             @ApiResponse(responseCode = "409", description = "Alguna de las cuentas no está activa.", content = @Content)
     })
     @PostMapping
