@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -52,15 +53,25 @@ public class TransferenciaServiceImpl implements TransferenciaService {
         // vez y cada una bloqueara primero su origen, se esperarian para siempre.
         String numeroOrigen = request.getNumeroCuentaOrigen();
         String numeroDestino = request.getNumeroCuentaDestino();
-        CuentaApi.CuentaInfo cuentaOrigen;
-        CuentaApi.CuentaInfo cuentaDestino;
+        Optional<CuentaApi.CuentaInfo> origenBloqueado;
+        Optional<CuentaApi.CuentaInfo> destinoBloqueado;
         if (numeroOrigen.compareTo(numeroDestino) < 0) {
-            cuentaOrigen = cuentaApi.bloquearPorNumeroCuenta(numeroOrigen);
-            cuentaDestino = cuentaApi.bloquearPorNumeroCuenta(numeroDestino);
+            origenBloqueado = cuentaApi.bloquearPorNumeroCuenta(numeroOrigen);
+            destinoBloqueado = cuentaApi.bloquearPorNumeroCuenta(numeroDestino);
         } else {
-            cuentaDestino = cuentaApi.bloquearPorNumeroCuenta(numeroDestino);
-            cuentaOrigen = cuentaApi.bloquearPorNumeroCuenta(numeroOrigen);
+            destinoBloqueado = cuentaApi.bloquearPorNumeroCuenta(numeroDestino);
+            origenBloqueado = cuentaApi.bloquearPorNumeroCuenta(numeroOrigen);
         }
+
+        // DEF-HU12-07: cada cuenta inexistente se reporta con su propio codigo.
+        // El orden importa: primero se valida todo el origen (existe, es del
+        // cliente, esta activo) y solo despues el destino, para no revelar nada
+        // del destino a quien usa una cuenta de origen ajena.
+        CuentaApi.CuentaInfo cuentaOrigen = origenBloqueado.orElseThrow(() -> new NegocioException(
+                "SOURCE_ACCOUNT_NOT_FOUND",
+                "La cuenta de origen " + numeroOrigen + " no existe",
+                HttpStatus.NOT_FOUND
+        ));
 
         // Verificar que la cuenta origen pertenezca al cliente autenticado
         if (!cuentaOrigen.clienteId().equals(clienteId)) {
@@ -79,6 +90,12 @@ public class TransferenciaServiceImpl implements TransferenciaService {
                     HttpStatus.CONFLICT
             );
         }
+
+        CuentaApi.CuentaInfo cuentaDestino = destinoBloqueado.orElseThrow(() -> new NegocioException(
+                "DESTINATION_ACCOUNT_NOT_FOUND",
+                "La cuenta de destino " + numeroDestino + " no existe",
+                HttpStatus.NOT_FOUND
+        ));
 
         if (!"ACTIVA".equalsIgnoreCase(cuentaDestino.estadoNombre())) {
             throw new NegocioException(

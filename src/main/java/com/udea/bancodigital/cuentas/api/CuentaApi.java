@@ -1,6 +1,7 @@
 package com.udea.bancodigital.cuentas.api;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 /**
  * API pública del módulo de Cuentas.
@@ -24,10 +25,15 @@ public interface CuentaApi {
 
     /**
      * Busca la información de una cuenta por su número.
+     * <p>
+     * Devuelve vacío si no existe, en lugar de lanzar un error: solo quien llama
+     * sabe qué papel cumple la cuenta (origen, destino, consultada) y, por lo
+     * tanto, qué error corresponde (DEF-HU12-07).
+     *
      * @param numeroCuenta el número de cuenta
-     * @return CuentaInfo si existe, de lo contrario lanza excepción de negocio
+     * @return la información de la cuenta, o vacío si no existe
      */
-    CuentaInfo obtenerInfoPorNumeroCuenta(String numeroCuenta);
+    Optional<CuentaInfo> obtenerInfoPorNumeroCuenta(String numeroCuenta);
 
     /**
      * Igual que {@link #obtenerInfoPorNumeroCuenta(String)}, pero bloquea la fila
@@ -40,9 +46,9 @@ public interface CuentaApi {
      * orden para no provocar un interbloqueo.
      *
      * @param numeroCuenta el número de cuenta
-     * @return CuentaInfo con el saldo vigente, de lo contrario lanza excepción de negocio
+     * @return la información con el saldo vigente, o vacío si no existe
      */
-    CuentaInfo bloquearPorNumeroCuenta(String numeroCuenta);
+    Optional<CuentaInfo> bloquearPorNumeroCuenta(String numeroCuenta);
 
     /**
      * Actualiza el saldo de una cuenta existente.
