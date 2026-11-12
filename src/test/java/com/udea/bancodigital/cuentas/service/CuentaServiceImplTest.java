@@ -14,9 +14,11 @@ import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willReturn;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -84,7 +87,7 @@ class CuentaServiceImplTest {
         given(tipoCuentaRepository.findByNombreIgnoreCase("AHORROS")).willReturn(Optional.of(tipo("AHORROS")));
         given(cuentaRepository.existsCuentaActivaPorClienteYTipo(CLIENTE_ID, "AHORROS")).willReturn(false);
         given(estadoRepository.findByNombreIgnoreCase("ACTIVA")).willReturn(Optional.of(estado("ACTIVA")));
-        given(cuentaRepository.save(any(Cuenta.class))).willAnswer(inv -> {
+        given(cuentaRepository.saveAndFlush(any(Cuenta.class))).willAnswer(inv -> {
             Cuenta cuenta = inv.getArgument(0);
             cuenta.setId(1L);
             return cuenta;
@@ -106,7 +109,7 @@ class CuentaServiceImplTest {
         given(estadoRepository.findByNombreIgnoreCase("ACTIVA")).willReturn(Optional.of(estado("ACTIVA")));
 
         ArgumentCaptor<Cuenta> guardada = ArgumentCaptor.forClass(Cuenta.class);
-        given(cuentaRepository.save(guardada.capture())).willAnswer(inv -> {
+        given(cuentaRepository.saveAndFlush(guardada.capture())).willAnswer(inv -> {
             Cuenta cuenta = inv.getArgument(0);
             cuenta.setId(1L);
             return cuenta;
@@ -126,7 +129,7 @@ class CuentaServiceImplTest {
         willReturn(true, false).given(cuentaRepository).existsByNumeroCuenta(anyString());
 
         ArgumentCaptor<Cuenta> guardada = ArgumentCaptor.forClass(Cuenta.class);
-        given(cuentaRepository.save(guardada.capture())).willAnswer(inv -> {
+        given(cuentaRepository.saveAndFlush(guardada.capture())).willAnswer(inv -> {
             Cuenta cuenta = inv.getArgument(0);
             cuenta.setId(1L);
             return cuenta;
@@ -143,7 +146,7 @@ class CuentaServiceImplTest {
         given(tipoCuentaRepository.findByNombreIgnoreCase("AHORROS")).willReturn(Optional.of(tipo("AHORROS")));
         given(cuentaRepository.existsCuentaActivaPorClienteYTipo(CLIENTE_ID, "AHORROS")).willReturn(false);
         given(estadoRepository.findByNombreIgnoreCase("ACTIVA")).willReturn(Optional.of(estado("ACTIVA")));
-        given(cuentaRepository.save(any(Cuenta.class))).willAnswer(inv -> {
+        given(cuentaRepository.saveAndFlush(any(Cuenta.class))).willAnswer(inv -> {
             Cuenta cuenta = inv.getArgument(0);
             cuenta.setId(1L);
             return cuenta;
@@ -165,7 +168,7 @@ class CuentaServiceImplTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                 });
 
-        verify(cuentaRepository, never()).save(any(Cuenta.class));
+        verify(cuentaRepository, never()).saveAndFlush(any(Cuenta.class));
     }
 
     @Test
@@ -179,7 +182,7 @@ class CuentaServiceImplTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.CONFLICT);
                 });
 
-        verify(cuentaRepository, never()).save(any(Cuenta.class));
+        verify(cuentaRepository, never()).saveAndFlush(any(Cuenta.class));
     }
 
     @Test
@@ -206,7 +209,56 @@ class CuentaServiceImplTest {
                     assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
                 });
 
-        verify(cuentaRepository, never()).save(any(Cuenta.class));
+        verify(cuentaRepository, never()).saveAndFlush(any(Cuenta.class));
+    }
+
+    // ------------------------------------------------- DEF-HU5-02 concurrencia
+
+    private void aperturaListaParaGuardar(String tipoNombre) {
+        given(tipoCuentaRepository.findByNombreIgnoreCase(tipoNombre)).willReturn(Optional.of(tipo(tipoNombre)));
+        given(cuentaRepository.existsCuentaActivaPorClienteYTipo(CLIENTE_ID, tipoNombre)).willReturn(false);
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVA")).willReturn(Optional.of(estado("ACTIVA")));
+    }
+
+    @Test
+    void aperturaTomaElCandadoDelClienteAntesDeVerificarSiYaTieneLaCuenta() {
+        aperturaListaParaGuardar("AHORROS");
+        given(cuentaRepository.saveAndFlush(any(Cuenta.class))).willAnswer(inv -> inv.getArgument(0));
+
+        cuentaService.solicitarAperturaCuenta(CLIENTE_ID, new AperturaCuentaRequest("AHORROS"));
+
+        InOrder orden = inOrder(cuentaRepository);
+        orden.verify(cuentaRepository).bloquearAperturasDelCliente(CLIENTE_ID);
+        orden.verify(cuentaRepository).existsCuentaActivaPorClienteYTipo(CLIENTE_ID, "AHORROS");
+        orden.verify(cuentaRepository).saveAndFlush(any(Cuenta.class));
+    }
+
+    @Test
+    void siElIndiceUnicoRechazaLaCuentaSeRespondeElMismo409DeNegocio() {
+        aperturaListaParaGuardar("AHORROS");
+        given(cuentaRepository.saveAndFlush(any(Cuenta.class))).willThrow(new DataIntegrityViolationException(
+                "could not execute statement",
+                new RuntimeException("ERROR: duplicate key value violates unique constraint "
+                        + "\"uq_cuentas_cliente_tipo_activa\"")));
+
+        assertThatThrownBy(() -> cuentaService.solicitarAperturaCuenta(CLIENTE_ID, new AperturaCuentaRequest("AHORROS")))
+                .isInstanceOfSatisfying(NegocioException.class, excepcion -> {
+                    assertThat(excepcion.getErrorCode()).isEqualTo("ACCOUNT_TYPE_ALREADY_EXISTS");
+                    assertThat(excepcion.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                });
+    }
+
+    @Test
+    void otroChoqueDeIntegridadNoSeDisfrazaDeCuentaRepetida() {
+        aperturaListaParaGuardar("AHORROS");
+        DataIntegrityViolationException numeroRepetido = new DataIntegrityViolationException(
+                "could not execute statement",
+                new RuntimeException("ERROR: duplicate key value violates unique constraint "
+                        + "\"cuentas_numero_cuenta_key\""));
+        given(cuentaRepository.saveAndFlush(any(Cuenta.class))).willThrow(numeroRepetido);
+
+        assertThatThrownBy(() -> cuentaService.solicitarAperturaCuenta(CLIENTE_ID, new AperturaCuentaRequest("AHORROS")))
+                .isSameAs(numeroRepetido);
     }
 
     // ------------------------------------------------------------- HU6 consulta

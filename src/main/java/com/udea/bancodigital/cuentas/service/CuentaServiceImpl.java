@@ -1,5 +1,6 @@
 package com.udea.bancodigital.cuentas.service;
 
+import com.udea.bancodigital.cuentas.config.IndiceCuentaActivaUnica;
 import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
 import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
@@ -16,6 +17,8 @@ import com.udea.bancodigital.shared.exception.CodigosError;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.NestedExceptionUtils;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -65,14 +68,13 @@ public class CuentaServiceImpl implements CuentaService {
             );
         }
 
-        // 2. Validar si ya posee una cuenta ACTIVA de ese tipo (HU5 - Criterio 3)
-        boolean yaTieneCuentaActiva = cuentaRepository.existsCuentaActivaPorClienteYTipo(clienteId, tipoNombre);
-        if (yaTieneCuentaActiva) {
-            throw new NegocioException(
-                    "ACCOUNT_TYPE_ALREADY_EXISTS",
-                    "El cliente ya posee una cuenta activa del tipo " + tipoNombre,
-                    HttpStatus.CONFLICT
-            );
+        // 2. Validar si ya posee una cuenta ACTIVA de ese tipo (HU5 - Criterio 3).
+        // DEF-HU5-02: la consulta sola no basta, porque dos aperturas simultaneas
+        // la pasan antes de que cualquiera guarde. El candado por cliente hace
+        // que esperen su turno, y el indice unico parcial es la ultima defensa.
+        cuentaRepository.bloquearAperturasDelCliente(clienteId);
+        if (cuentaRepository.existsCuentaActivaPorClienteYTipo(clienteId, tipoNombre)) {
+            throw cuentaDelTipoYaExiste(tipoNombre);
         }
 
         // 3. Obtener el Estado "ACTIVA"
@@ -98,9 +100,35 @@ public class CuentaServiceImpl implements CuentaService {
                 .fechaApertura(OffsetDateTime.now())
                 .build();
 
-        Cuenta cuentaGuardada = cuentaRepository.save(nuevaCuenta);
+        Cuenta cuentaGuardada;
+        try {
+            // saveAndFlush: el INSERT tiene que salir aqui, dentro del try, y no
+            // al confirmar la transaccion, donde ya no se podria traducir el error.
+            cuentaGuardada = cuentaRepository.saveAndFlush(nuevaCuenta);
+        } catch (DataIntegrityViolationException e) {
+            if (violaIndiceCuentaActivaUnica(e)) {
+                throw cuentaDelTipoYaExiste(tipoNombre);
+            }
+            throw e;
+        }
 
         return mapToResponse(cuentaGuardada);
+    }
+
+    private NegocioException cuentaDelTipoYaExiste(String tipoNombre) {
+        return new NegocioException(
+                "ACCOUNT_TYPE_ALREADY_EXISTS",
+                "El cliente ya posee una cuenta activa del tipo " + tipoNombre,
+                HttpStatus.CONFLICT
+        );
+    }
+
+    // Solo el indice de DEF-HU5-02 significa "ya tiene una cuenta de ese tipo";
+    // otro choque (p. ej. numero de cuenta repetido) sigue su curso normal.
+    private static boolean violaIndiceCuentaActivaUnica(DataIntegrityViolationException e) {
+        Throwable causa = NestedExceptionUtils.getMostSpecificCause(e);
+        String mensaje = causa.getMessage();
+        return mensaje != null && mensaje.contains(IndiceCuentaActivaUnica.NOMBRE_INDICE);
     }
 
     @Override
