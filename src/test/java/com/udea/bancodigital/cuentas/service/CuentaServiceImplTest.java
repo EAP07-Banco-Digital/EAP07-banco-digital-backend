@@ -139,6 +139,21 @@ class CuentaServiceImplTest {
     }
 
     @Test
+    void aperturaDejaDeReintentarAlAgotarLosIntentosYNoGuardaNada() {
+        given(tipoCuentaRepository.findByNombreIgnoreCase("AHORROS")).willReturn(Optional.of(tipo("AHORROS")));
+        given(cuentaRepository.existsCuentaActivaPorClienteYTipo(CLIENTE_ID, "AHORROS")).willReturn(false);
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVA")).willReturn(Optional.of(estado("ACTIVA")));
+        // Todo numero generado "ya existe": antes esto era un bucle infinito.
+        given(cuentaRepository.existsByNumeroCuenta(anyString())).willReturn(true);
+
+        assertThatThrownBy(() -> cuentaService.solicitarAperturaCuenta(CLIENTE_ID, new AperturaCuentaRequest("AHORROS")))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(cuentaRepository, times(CuentaServiceImpl.MAX_INTENTOS_NUMERO_CUENTA)).existsByNumeroCuenta(anyString());
+        verify(cuentaRepository, never()).save(any(Cuenta.class));
+    }
+
+    @Test
     void apertureNormalizaElTipoAMayusculasYConEspacios() {
         given(tipoCuentaRepository.findByNombreIgnoreCase("AHORROS")).willReturn(Optional.of(tipo("AHORROS")));
         given(cuentaRepository.existsCuentaActivaPorClienteYTipo(CLIENTE_ID, "AHORROS")).willReturn(false);
