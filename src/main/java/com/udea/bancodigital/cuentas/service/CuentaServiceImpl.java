@@ -5,8 +5,10 @@ import com.udea.bancodigital.cuentas.dto.AperturaCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.CuentaResponse;
 import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
 import com.udea.bancodigital.cuentas.dto.HistorialTransaccionResponse;
+import com.udea.bancodigital.cuentas.dto.MovimientoReporteResponse;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaResponse;
+import com.udea.bancodigital.cuentas.dto.ReporteMovimientosResponse;
 import com.udea.bancodigital.cuentas.entity.Cuenta;
 import com.udea.bancodigital.shared.entity.Estado;
 import com.udea.bancodigital.cuentas.entity.TipoCuenta;
@@ -29,12 +31,18 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -312,17 +320,125 @@ public class CuentaServiceImpl implements CuentaService {
     }
 
 
-    private HistorialTransaccionResponse mapearTransaccion(Cuenta cuenta, TransaccionApi.TransaccionDetalle t) {
-        String tipoMovimiento;
-        if ("CREDITO".equalsIgnoreCase(t.tipoTransaccion())) {
-            tipoMovimiento = "ENTRADA";
-        } else if ("DEBITO".equalsIgnoreCase(t.tipoTransaccion())) {
-            tipoMovimiento = "SALIDA";
-        } else if (cuenta.getId().equals(t.cuentaOrigenId())) {
-            tipoMovimiento = "SALIDA";
-        } else {
-            tipoMovimiento = "ENTRADA";
+    @Override
+    @Transactional(readOnly = true)
+    public ReporteMovimientosResponse generarReporteMovimientos(
+            Long clienteId,
+            String numeroCuenta,
+            LocalDate fechaInicio,
+            LocalDate fechaFin
+    ) {
+        validarAutenticado(clienteId);
+
+        if (fechaInicio.isAfter(fechaFin)) {
+            throw new NegocioException(
+                    "RANGO_FECHAS_INVALIDO",
+                    "La fecha de inicio no puede ser posterior a la fecha de fin",
+                    HttpStatus.BAD_REQUEST
+            );
         }
+
+        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta)
+                .orElseThrow(() -> new NegocioException(
+                        "ACCOUNT_NOT_FOUND",
+                        "La cuenta consultada no existe",
+                        HttpStatus.NOT_FOUND
+                ));
+
+        if (!cuenta.getClienteId().equals(clienteId)) {
+            throw new NegocioException(
+                    "FORBIDDEN",
+                    "No tiene permisos para generar el reporte de esta cuenta",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+
+        // Mismo criterio de dias que el historial (HU15): en UTC. El fin es
+        // exclusivo (inicio del dia siguiente) para no perder fracciones de segundo.
+        OffsetDateTime desde = fechaInicio.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime hasta = fechaFin.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+
+        List<TransaccionApi.TransaccionDetalle> movimientos =
+                transaccionApi.listarMovimientos(cuenta.getId(), desde, hasta);
+
+        // El saldo actual es la unica cifra cierta. El saldo al cierre del periodo
+        // es el actual menos lo que se movio despues; el del inicio, ese cierre
+        // menos lo que se movio dentro del periodo. Asi el reporte cuadra con el
+        // saldo real aunque la cuenta tenga movimientos posteriores.
+        BigDecimal efectoPosterior = transaccionApi.calcularEfectoNetoDesde(cuenta.getId(), hasta);
+        BigDecimal saldoFinal = cuenta.getSaldoDisponible().subtract(efectoPosterior);
+
+        BigDecimal totalCreditos = BigDecimal.ZERO;
+        BigDecimal totalDebitos = BigDecimal.ZERO;
+        for (TransaccionApi.TransaccionDetalle t : movimientos) {
+            if (t.esCreditoPara(cuenta.getId())) {
+                totalCreditos = totalCreditos.add(t.monto());
+            } else {
+                totalDebitos = totalDebitos.add(t.monto());
+            }
+        }
+        BigDecimal saldoInicial = saldoFinal.subtract(totalCreditos).add(totalDebitos);
+
+        Map<Long, String> numerosDeCuenta = numerosDeCuentasRelacionadas(cuenta, movimientos);
+        List<MovimientoReporteResponse> detalle = new ArrayList<>(movimientos.size());
+        BigDecimal saldoCorriente = saldoInicial;
+        for (TransaccionApi.TransaccionDetalle t : movimientos) {
+            boolean esCredito = t.esCreditoPara(cuenta.getId());
+            saldoCorriente = esCredito ? saldoCorriente.add(t.monto()) : saldoCorriente.subtract(t.monto());
+            detalle.add(MovimientoReporteResponse.builder()
+                    .transaccionId(t.id())
+                    .fechaHora(t.fechaHora())
+                    .tipoTransaccion(t.tipoTransaccion())
+                    .naturaleza(esCredito ? "CREDITO" : "DEBITO")
+                    .monto(dinero(t.monto()))
+                    .descripcion(t.descripcion())
+                    .numeroCuentaOrigen(numerosDeCuenta.get(t.cuentaOrigenId()))
+                    .numeroCuentaDestino(numerosDeCuenta.get(t.cuentaDestinoId()))
+                    .saldoResultante(dinero(saldoCorriente))
+                    .build());
+        }
+
+        return ReporteMovimientosResponse.builder()
+                .numeroCuenta(cuenta.getNumeroCuenta())
+                .tipoCuenta(cuenta.getTipoCuenta().getNombre())
+                .fechaInicio(fechaInicio)
+                .fechaFin(fechaFin)
+                .saldoInicial(dinero(saldoInicial))
+                .saldoFinal(dinero(saldoFinal))
+                .totalCreditos(dinero(totalCreditos))
+                .totalDebitos(dinero(totalDebitos))
+                .transacciones(detalle)
+                .build();
+    }
+
+    // Numeros de las cuentas que aparecen en los movimientos, en una sola
+    // consulta (y no una por fila).
+    private Map<Long, String> numerosDeCuentasRelacionadas(
+            Cuenta cuenta, List<TransaccionApi.TransaccionDetalle> movimientos) {
+        Set<Long> otras = new HashSet<>();
+        for (TransaccionApi.TransaccionDetalle t : movimientos) {
+            otras.add(t.cuentaOrigenId());
+            otras.add(t.cuentaDestinoId());
+        }
+        otras.remove(null);
+        otras.remove(cuenta.getId());
+
+        Map<Long, String> numeros = new HashMap<>();
+        if (!otras.isEmpty()) {
+            cuentaRepository.findAllById(otras)
+                    .forEach(otra -> numeros.put(otra.getId(), otra.getNumeroCuenta()));
+        }
+        numeros.put(cuenta.getId(), cuenta.getNumeroCuenta());
+        return numeros;
+    }
+
+    // Todo valor monetario del reporte sale con dos decimales, como en la base.
+    private static BigDecimal dinero(BigDecimal valor) {
+        return valor.setScale(2, RoundingMode.HALF_EVEN);
+    }
+
+    private HistorialTransaccionResponse mapearTransaccion(Cuenta cuenta, TransaccionApi.TransaccionDetalle t) {
+        String tipoMovimiento = t.esCreditoPara(cuenta.getId()) ? "ENTRADA" : "SALIDA";
 
         String numeroOrigen = null;
         if (t.cuentaOrigenId() != null) {
