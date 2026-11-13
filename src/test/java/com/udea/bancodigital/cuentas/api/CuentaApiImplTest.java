@@ -14,7 +14,10 @@ import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * Tests de la API pública inter-módulos de Cuentas (CuentaApiImpl).
@@ -136,5 +140,68 @@ class CuentaApiImplTest {
                 });
 
         verify(cuentaRepository, never()).save(any(Cuenta.class));
+    }
+
+    // ------------------------------------------------------------- HU20 reportes
+
+    @Test
+    void buscarCuentasPorClienteDevuelveTodasSusCuentas() {
+        given(cuentaRepository.findByClienteIdOrderByFechaAperturaDesc(CLIENTE_ID)).willReturn(List.of(
+                cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "1.00", "ACTIVA"),
+                cuenta(2L, CLIENTE_ID, "1000000002", tipo("CORRIENTE"), "2.00", "INACTIVA")));
+
+        assertThat(cuentaApi.buscarCuentas(CLIENTE_ID, null))
+                .extracting(CuentaApi.CuentaInfo::id).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void buscarCuentasPorNumeroDevuelveEsaCuenta() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO))
+                .willReturn(Optional.of(cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "1.00", "ACTIVA")));
+
+        assertThat(cuentaApi.buscarCuentas(null, NUMERO))
+                .extracting(CuentaApi.CuentaInfo::numeroCuenta).containsExactly(NUMERO);
+    }
+
+    @Test
+    void buscarCuentasConNumeroDeOtroClienteNoDevuelveNada() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO))
+                .willReturn(Optional.of(cuenta(1L, 99L, NUMERO, tipo("AHORROS"), "1.00", "ACTIVA")));
+
+        assertThat(cuentaApi.buscarCuentas(CLIENTE_ID, NUMERO)).isEmpty();
+    }
+
+    @Test
+    void buscarCuentasConNumeroInexistenteNoDevuelveNada() {
+        given(cuentaRepository.findByNumeroCuenta("9999999999")).willReturn(Optional.empty());
+
+        assertThat(cuentaApi.buscarCuentas(null, "9999999999")).isEmpty();
+    }
+
+    @Test
+    void buscarCuentasSinFiltrosNoListaTodasLasCuentas() {
+        assertThat(cuentaApi.buscarCuentas(null, null)).isEmpty();
+
+        verifyNoInteractions(cuentaRepository);
+    }
+
+    @Test
+    void obtenerInfoPorIdsLeeTodasLasCuentasEnUnaSolaConsulta() {
+        given(cuentaRepository.findByIdIn(Set.of(1L, 2L))).willReturn(List.of(
+                cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "1.00", "ACTIVA"),
+                cuenta(2L, 99L, "2000000002", tipo("AHORROS"), "2.00", "ACTIVA")));
+
+        Map<Long, CuentaApi.CuentaInfo> cuentas = cuentaApi.obtenerInfoPorIds(Set.of(1L, 2L));
+
+        assertThat(cuentas).containsOnlyKeys(1L, 2L);
+        assertThat(cuentas.get(2L).clienteId()).isEqualTo(99L);
+    }
+
+    @Test
+    void obtenerInfoPorIdsSinIdsNoConsultaLaBase() {
+        assertThat(cuentaApi.obtenerInfoPorIds(Set.of())).isEmpty();
+        assertThat(cuentaApi.obtenerInfoPorIds(null)).isEmpty();
+
+        verifyNoInteractions(cuentaRepository);
     }
 }

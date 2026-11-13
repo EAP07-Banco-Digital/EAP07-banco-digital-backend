@@ -29,7 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -228,6 +231,23 @@ public class UsuarioService implements UsuarioApi {
         return usuarioRepository.findById(usuarioId)
                 .filter(Usuario::estaActivo)
                 .map(usuario -> new Identidad(usuario.getEmail(), usuario.getRol().getNombre()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, ClienteResumen> obtenerClientesPorIds(Collection<Long> clienteIds) {
+        Map<Long, ClienteResumen> clientes = new HashMap<>();
+        if (clienteIds == null || clienteIds.isEmpty()) {
+            return clientes;
+        }
+        clienteRepository.findAllById(clienteIds).forEach(cliente -> clientes.put(cliente.getId(),
+                new ClienteResumen(
+                        cliente.getId(),
+                        cliente.getNombres() + " " + cliente.getApellidos(),
+                        cliente.getTipoDocumento(),
+                        cliente.getNumeroDocumento(),
+                        cliente.getEmail())));
+        return clientes;
     }
 
     private Usuario buscarPorEmail(String email) {

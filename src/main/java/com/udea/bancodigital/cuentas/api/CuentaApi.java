@@ -1,6 +1,9 @@
 package com.udea.bancodigital.cuentas.api;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
  * API pública del módulo de Cuentas.
@@ -50,4 +53,18 @@ public interface CuentaApi {
      * @param nuevoSaldo nuevo saldo a establecer
      */
     void actualizarSaldo(Long cuentaId, BigDecimal nuevoSaldo);
+
+    /**
+     * HU20: cuentas que cumplen los filtros dados; un filtro nulo no restringe.
+     * Con los dos filtros, la cuenta debe tener ese numero y ser de ese cliente.
+     * Si ninguno viene, devuelve una lista vacia (no se listan todas las cuentas).
+     */
+    List<CuentaInfo> buscarCuentas(Long clienteId, String numeroCuenta);
+
+    /**
+     * HU20: informacion de varias cuentas en una sola consulta.
+     *
+     * @return mapa id de cuenta -> informacion; los ids que no existen no aparecen
+     */
+    Map<Long, CuentaInfo> obtenerInfoPorIds(Collection<Long> cuentaIds);
 }
