@@ -17,6 +17,7 @@ import com.udea.bancodigital.shared.repository.EstadoRepository;
 import com.udea.bancodigital.cuentas.repository.TipoCuentaRepository;
 import com.udea.bancodigital.shared.exception.CodigosError;
 import com.udea.bancodigital.shared.exception.NegocioException;
+import com.udea.bancodigital.shared.tiempo.DiaBancario;
 import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.NestedExceptionUtils;
@@ -34,9 +35,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -300,8 +299,9 @@ public class CuentaServiceImpl implements CuentaService {
             );
         }
 
-        OffsetDateTime desdeOffset = (desde != null) ? desde.atStartOfDay().atOffset(ZoneOffset.UTC) : null;
-        OffsetDateTime hastaOffset = (hasta != null) ? hasta.atTime(LocalTime.MAX).atOffset(ZoneOffset.UTC) : null;
+        // Dias de Colombia, no UTC (ver DiaBancario).
+        OffsetDateTime desdeOffset = (desde != null) ? DiaBancario.inicio(desde) : null;
+        OffsetDateTime hastaOffset = (hasta != null) ? DiaBancario.ultimoInstante(hasta) : null;
 
         int pageIndex = Math.max(0, page - 1);
         int pageSize = size > 0 ? size : 10;
@@ -353,10 +353,10 @@ public class CuentaServiceImpl implements CuentaService {
             );
         }
 
-        // Mismo criterio de dias que el historial (HU15): en UTC. El fin es
-        // exclusivo (inicio del dia siguiente) para no perder fracciones de segundo.
-        OffsetDateTime desde = fechaInicio.atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime hasta = fechaFin.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+        // Dias de Colombia, como el historial (HU15). El fin es exclusivo (inicio
+        // del dia siguiente) para no perder fracciones de segundo.
+        OffsetDateTime desde = DiaBancario.inicio(fechaInicio);
+        OffsetDateTime hasta = DiaBancario.finExclusivo(fechaFin);
 
         List<TransaccionApi.TransaccionDetalle> movimientos =
                 transaccionApi.listarMovimientos(cuenta.getId(), desde, hasta);

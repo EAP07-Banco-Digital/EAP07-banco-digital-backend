@@ -43,8 +43,8 @@ class CuentaServiceReporteTest {
     private static final String NUMERO = "1234567890";
     private static final LocalDate INICIO = LocalDate.of(2026, 10, 1);
     private static final LocalDate FIN = LocalDate.of(2026, 10, 31);
-    private static final OffsetDateTime DESDE = OffsetDateTime.parse("2026-10-01T00:00:00Z");
-    private static final OffsetDateTime HASTA = OffsetDateTime.parse("2026-11-01T00:00:00Z");
+    private static final OffsetDateTime DESDE = OffsetDateTime.parse("2026-10-01T00:00:00-05:00");
+    private static final OffsetDateTime HASTA = OffsetDateTime.parse("2026-11-01T00:00:00-05:00");
 
     @Mock
     private CuentaRepository cuentaRepository;
@@ -177,10 +177,10 @@ class CuentaServiceReporteTest {
     }
 
     @Test
-    void unReporteDeUnSoloDiaIncluyeEseDiaCompleto() {
+    void unReporteDeUnSoloDiaIncluyeEseDiaCompletoEnHoraDeColombia() {
         cuentaPropiaConSaldo("0.00");
-        OffsetDateTime inicioDia = OffsetDateTime.parse("2026-10-05T00:00:00Z");
-        OffsetDateTime finDia = OffsetDateTime.parse("2026-10-06T00:00:00Z");
+        OffsetDateTime inicioDia = OffsetDateTime.parse("2026-10-05T00:00:00-05:00");
+        OffsetDateTime finDia = OffsetDateTime.parse("2026-10-06T00:00:00-05:00");
         given(transaccionApi.listarMovimientos(CUENTA_ID, inicioDia, finDia)).willReturn(List.of());
         given(transaccionApi.calcularEfectoNetoDesde(CUENTA_ID, finDia)).willReturn(BigDecimal.ZERO);
 

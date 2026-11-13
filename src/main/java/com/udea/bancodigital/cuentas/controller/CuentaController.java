@@ -236,7 +236,7 @@ public class CuentaController {
             summary = "Generar reporte de movimientos de una cuenta (HU16)",
             description = """
                     Genera el reporte de una cuenta del cliente autenticado entre `fechaInicio` y `fechaFin`
-                    (ambas incluidas, formato YYYY-MM-DD, dias en UTC como el historial de HU15).
+                    (ambas incluidas, formato YYYY-MM-DD, dias en hora de Colombia como el historial de HU15).
 
                     Incluye `saldoInicial`, `saldoFinal`, `totalCreditos`, `totalDebitos` y el detalle de
                     `transacciones` en orden cronologico, cada una con el saldo que dejo en la cuenta.

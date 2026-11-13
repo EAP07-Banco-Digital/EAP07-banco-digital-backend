@@ -59,8 +59,8 @@ class ReporteMovimientosPostgresTest extends PostgresContenedor {
 
         movimiento(cuentaId, null, "CREDITO", "50000.00", "2026-10-02T10:00:00Z", "Deposito");
         movimiento(cuentaId, otraCuentaId, "TRANSFERENCIA", "20000.00", "2026-10-10T10:00:00Z", "Pago");
-        movimiento(otraCuentaId, cuentaId, "TRANSFERENCIA", "15000.00", "2026-10-31T23:59:59.999Z", "Devolucion");
-        movimiento(cuentaId, null, "CREDITO", "80000.00", "2026-11-01T00:00:00Z", "Nomina");
+        movimiento(otraCuentaId, cuentaId, "TRANSFERENCIA", "15000.00", "2026-10-31T23:59:59.999-05:00", "Devolucion");
+        movimiento(cuentaId, null, "CREDITO", "80000.00", "2026-11-01T00:00:00-05:00", "Nomina");
         movimiento(cuentaId, null, "DEBITO", "10000.00", "2026-11-05T09:00:00Z", "Retiro");
     }
 
@@ -105,7 +105,7 @@ class ReporteMovimientosPostgresTest extends PostgresContenedor {
         assertThat(reporte.get("totalDebitos").decimalValue()).isEqualByComparingTo("20000.00");
 
         JsonNode transacciones = reporte.get("transacciones");
-        // El ultimo milisegundo del 31 entra; la medianoche del 1 de noviembre no.
+        // El ultimo milisegundo del 31 (hora de Colombia) entra; la medianoche del 1 de noviembre no.
         assertThat(transacciones).hasSize(3);
         assertThat(transacciones.get(0).get("descripcion").asText()).isEqualTo("Deposito");
         assertThat(transacciones.get(1).get("numeroCuentaDestino").asText()).isEqualTo(NUMERO_OTRO);
@@ -134,6 +134,22 @@ class ReporteMovimientosPostgresTest extends PostgresContenedor {
         // Entre el pago del 10 y la devolucion del 31 el saldo fue 30.000.
         assertThat(reporte.get("saldoInicial").decimalValue()).isEqualByComparingTo("30000.00");
         assertThat(reporte.get("saldoFinal").decimalValue()).isEqualByComparingTo("30000.00");
+    }
+
+    @Test
+    void unMovimientoDeLaNocheEnColombiaCuentaEnEseDiaAunqueEnUtcSeaElSiguiente() throws Exception {
+        // 20 de octubre a las 9 p. m. en Bogota = 21 de octubre 02:00 UTC
+        movimiento(cuentaId, null, "CREDITO", "1000.00", "2026-10-20T21:00:00-05:00", "Nocturno");
+        jdbcTemplate.update("UPDATE cuentas SET saldo_disponible = saldo_disponible + 1000 WHERE id = ?", cuentaId);
+
+        JsonNode delDia = cuerpo(pedirReporte(NUMERO, "2026-10-20", "2026-10-20"));
+        JsonNode delSiguiente = cuerpo(pedirReporte(NUMERO, "2026-10-21", "2026-10-21"));
+
+        assertThat(delDia.get("transacciones")).hasSize(1);
+        assertThat(delDia.get("totalCreditos").decimalValue()).isEqualByComparingTo("1000.00");
+        assertThat(delDia.get("saldoInicial").decimalValue()).isEqualByComparingTo("30000.00");
+        assertThat(delDia.get("saldoFinal").decimalValue()).isEqualByComparingTo("31000.00");
+        assertThat(delSiguiente.get("transacciones")).isEmpty();
     }
 
     @Test
