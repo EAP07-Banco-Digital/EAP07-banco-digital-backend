@@ -46,7 +46,7 @@ public class ReporteAdminController {
                     resumen agregado (cantidad, monto total y totales por tipo) y el detalle de cada operacion
                     con sus cuentas y clientes.
 
-                    Todos los filtros son opcionales; las fechas incluyen el dia completo (UTC). Si nada
+                    Todos los filtros son opcionales; las fechas incluyen el dia completo (hora de Colombia). Si nada
                     coincide, responde 200 con totales en 0 y detalle vacio.
                     """
     )

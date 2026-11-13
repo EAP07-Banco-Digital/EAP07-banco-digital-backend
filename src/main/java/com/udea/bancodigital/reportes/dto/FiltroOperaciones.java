@@ -6,7 +6,7 @@ import java.time.LocalDate;
 
 /**
  * HU20: criterios de un reporte de operaciones. Todos son opcionales; las
- * fechas incluyen el dia completo (en UTC, como los demas reportes).
+ * fechas incluyen el dia completo (en hora de Colombia, como los demas reportes).
  */
 @Schema(description = "Filtros aplicados al reporte (HU20)")
 public record FiltroOperaciones(

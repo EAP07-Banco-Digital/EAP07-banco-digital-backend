@@ -43,8 +43,8 @@ class ReporteOperacionesServiceTest {
 
     private static final LocalDate INICIO = LocalDate.of(2026, 10, 1);
     private static final LocalDate FIN = LocalDate.of(2026, 10, 31);
-    private static final OffsetDateTime DESDE = OffsetDateTime.parse("2026-10-01T00:00:00Z");
-    private static final OffsetDateTime HASTA = OffsetDateTime.parse("2026-11-01T00:00:00Z");
+    private static final OffsetDateTime DESDE = OffsetDateTime.parse("2026-10-01T00:00:00-05:00");
+    private static final OffsetDateTime HASTA = OffsetDateTime.parse("2026-11-01T00:00:00-05:00");
 
     @Mock
     private TransaccionApi transaccionApi;

@@ -67,8 +67,8 @@ class ReporteOperacionesPostgresTest extends PostgresContenedor {
         // Octubre: 3 operaciones. Noviembre: 1 (fuera del periodo).
         operacion(cuentaAna, cuentaLuis, "TRANSFERENCIA", "100000.00", "2026-10-05T10:00:00Z");
         operacion(cuentaLuis, null, "CREDITO", "50000.00", "2026-10-06T10:00:00Z");
-        operacion(cuentaLuis2, cuentaAna, "TRANSFERENCIA", "35000.50", "2026-10-31T23:00:00Z");
-        operacion(cuentaAna, null, "DEBITO", "1000.00", "2026-11-01T00:00:00Z");
+        operacion(cuentaLuis2, cuentaAna, "TRANSFERENCIA", "35000.50", "2026-10-31T23:00:00-05:00"); // 1 de nov 04:00 UTC: sigue siendo octubre en Colombia
+        operacion(cuentaAna, null, "DEBITO", "1000.00", "2026-11-01T00:00:00-05:00");
     }
 
     private long cliente(String nombres, String apellidos, String documento) {

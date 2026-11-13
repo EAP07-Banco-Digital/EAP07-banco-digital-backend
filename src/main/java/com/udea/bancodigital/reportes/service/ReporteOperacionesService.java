@@ -9,6 +9,7 @@ import com.udea.bancodigital.reportes.dto.ReporteOperacionesResponse.Participant
 import com.udea.bancodigital.reportes.dto.ReporteOperacionesResponse.Resumen;
 import com.udea.bancodigital.reportes.dto.ReporteOperacionesResponse.TotalPorTipo;
 import com.udea.bancodigital.shared.exception.NegocioException;
+import com.udea.bancodigital.shared.tiempo.DiaBancario;
 import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import com.udea.bancodigital.transferencias.api.TransaccionApi.OperacionInfo;
 import com.udea.bancodigital.usuarios.api.UsuarioApi;
@@ -20,7 +21,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -108,11 +108,9 @@ public class ReporteOperacionesService {
                 return List.of();
             }
         }
-        // Mismo criterio de dias que los reportes de cuenta: UTC, fin exclusivo.
-        OffsetDateTime desde = filtro.fechaInicio() == null ? null
-                : filtro.fechaInicio().atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime hasta = filtro.fechaFin() == null ? null
-                : filtro.fechaFin().plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+        // Mismo criterio de dias que los reportes de cuenta: hora de Colombia, fin exclusivo.
+        OffsetDateTime desde = filtro.fechaInicio() == null ? null : DiaBancario.inicio(filtro.fechaInicio());
+        OffsetDateTime hasta = filtro.fechaFin() == null ? null : DiaBancario.finExclusivo(filtro.fechaFin());
         return transaccionApi.buscarOperaciones(desde, hasta, cuentaIds, filtro.estado());
     }
 
