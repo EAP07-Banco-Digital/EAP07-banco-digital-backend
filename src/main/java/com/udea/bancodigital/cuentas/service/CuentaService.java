@@ -6,6 +6,7 @@ import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
 import com.udea.bancodigital.cuentas.dto.HistorialTransaccionResponse;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaResponse;
+import com.udea.bancodigital.cuentas.dto.ReporteMovimientosResponse;
 import org.springframework.data.domain.Page;
 
 import java.time.LocalDate;
@@ -33,4 +34,15 @@ public interface CuentaService {
      *                            si es distinto al autenticado se responde 403
      */
     List<CuentaResumenResponse> listarCuentas(Long clienteId, Long clienteIdSolicitado);
+
+    /**
+     * HU16: reporte de movimientos de una cuenta propia entre dos fechas (ambas
+     * incluidas), con saldo inicial, saldo final y totales de creditos y debitos.
+     */
+    ReporteMovimientosResponse generarReporteMovimientos(
+            Long clienteId,
+            String numeroCuenta,
+            LocalDate fechaInicio,
+            LocalDate fechaFin
+    );
 }
