@@ -6,6 +6,7 @@ import com.udea.bancodigital.cuentas.dto.CuentaResumenResponse;
 import com.udea.bancodigital.cuentas.dto.HistorialTransaccionResponse;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaRequest;
 import com.udea.bancodigital.cuentas.dto.OperacionCuentaResponse;
+import com.udea.bancodigital.cuentas.dto.ReporteMovimientosResponse;
 import com.udea.bancodigital.cuentas.service.CuentaService;
 import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -228,5 +230,44 @@ public class CuentaController {
         );
 
         return ResponseEntity.ok(historial);
+    }
+
+    @Operation(
+            summary = "Generar reporte de movimientos de una cuenta (HU16)",
+            description = """
+                    Genera el reporte de una cuenta del cliente autenticado entre `fechaInicio` y `fechaFin`
+                    (ambas incluidas, formato YYYY-MM-DD, dias en hora de Colombia como el historial de HU15).
+
+                    Incluye `saldoInicial`, `saldoFinal`, `totalCreditos`, `totalDebitos` y el detalle de
+                    `transacciones` en orden cronologico, cada una con el saldo que dejo en la cuenta.
+                    Siempre se cumple `saldoFinal = saldoInicial + totalCreditos - totalDebitos`, y los saldos
+                    se reconstruyen desde el saldo actual de la cuenta.
+
+                    Si en el periodo no hubo movimientos, responde 200 con totales en 0, lista vacia y
+                    saldo inicial igual al final.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reporte generado (puede no tener movimientos).",
+                    content = @Content(schema = @Schema(implementation = ReporteMovimientosResponse.class))),
+            @ApiResponse(responseCode = "400", description = "fechaInicio posterior a fechaFin (RANGO_FECHAS_INVALIDO), o fecha ausente o mal formada (VALIDATION_ERROR).", content = @Content),
+            @ApiResponse(responseCode = "401", description = "No autenticado (UNAUTHORIZED).", content = @Content),
+            @ApiResponse(responseCode = "403", description = "La cuenta pertenece a otro cliente (FORBIDDEN).", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cuenta no encontrada (ACCOUNT_NOT_FOUND).", content = @Content)
+    })
+    @GetMapping("/{numeroCuenta}/reporte")
+    public ResponseEntity<ReporteMovimientosResponse> generarReporte(
+            @Parameter(description = "Número de cuenta bancaria", example = "1234567890", required = true)
+            @PathVariable String numeroCuenta,
+            @Parameter(description = "Primer día del periodo (YYYY-MM-DD)", example = "2026-10-01", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
+            @Parameter(description = "Último día del periodo (YYYY-MM-DD), incluido", example = "2026-10-31", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
+
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Long clienteId = usuarioApi.obtenerIdClientePorEmail(email);
+
+        return ResponseEntity.ok(cuentaService.generarReporteMovimientos(clienteId, numeroCuenta, fechaInicio, fechaFin));
     }
 }

@@ -109,7 +109,26 @@ public class TransaccionApiImpl implements TransaccionApi {
 
         Page<Transaccion> transaccionesPage = transaccionRepository.findAll(spec, pageable);
 
-        return transaccionesPage.map(t -> new TransaccionDetalle(
+        return transaccionesPage.map(TransaccionApiImpl::aDetalle);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TransaccionDetalle> listarMovimientos(Long cuentaId, OffsetDateTime desde, OffsetDateTime hasta) {
+        return transaccionRepository.findMovimientosDeCuenta(cuentaId, desde, hasta).stream()
+                .map(TransaccionApiImpl::aDetalle)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal calcularEfectoNetoDesde(Long cuentaId, OffsetDateTime desde) {
+        BigDecimal neto = transaccionRepository.sumarEfectoNetoDesde(cuentaId, desde);
+        return neto != null ? neto : BigDecimal.ZERO;
+    }
+
+    private static TransaccionDetalle aDetalle(Transaccion t) {
+        return new TransaccionDetalle(
                 t.getId(),
                 t.getCuentaOrigenId(),
                 t.getCuentaDestinoId(),
@@ -117,6 +136,6 @@ public class TransaccionApiImpl implements TransaccionApi {
                 t.getMonto(),
                 t.getFechaHora(),
                 t.getDescripcion()
-        ));
+        );
     }
 }
