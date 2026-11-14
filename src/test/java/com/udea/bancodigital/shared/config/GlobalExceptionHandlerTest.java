@@ -9,6 +9,9 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,12 +22,14 @@ import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.beanvalidation.SpringValidatorAdapter;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.time.LocalDate;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(OutputCaptureExtension.class)
 class GlobalExceptionHandlerTest {
 
     private static final String TRAZA = "0f1c3a6e-8b2d-4f7a-9c1e-5d3b7a2f4e80";
@@ -218,6 +223,32 @@ class GlobalExceptionHandlerTest {
         assertThat(cuerpo(respuesta).get("errorCode")).isEqualTo("INTERNAL_ERROR");
         assertThat(cuerpo(respuesta).get("message")).isEqualTo("Ocurrio un error inesperado");
         assertThat(respuesta.getBody().values()).doesNotContain("detalle interno que no debe filtrarse");
+    }
+
+    @Test
+    void unaExcepcionNoContempladaQuedaEnElLogConSuTraceIdYSuStacktrace(CapturedOutput salida) {
+        peticion.setMethod("POST");
+        peticion.setRequestURI("/api/v1/cuentas");
+
+        handler.manejarErrorGeneral(new IllegalStateException("causa para el log"), peticion);
+
+        assertThat(salida.getOut())
+                .contains("ERROR")
+                .contains("traceId=" + TRAZA)
+                .contains("POST /api/v1/cuentas")
+                .contains("java.lang.IllegalStateException: causa para el log")
+                .contains("at com.udea.bancodigital");
+    }
+
+    @Test
+    void unParametroObligatorioAusenteResponde400YNo500() {
+        ResponseEntity<Map<String, Object>> respuesta = handler.manejarParametroFaltante(
+                new MissingServletRequestParameterException("fechaFin", "LocalDate"), peticion);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(cuerpo(respuesta).get("errorCode")).isEqualTo("VALIDATION_ERROR");
+        assertThat(cuerpo(respuesta).get("message")).isEqualTo("El parametro 'fechaFin' es obligatorio");
+        assertThat(cuerpo(respuesta).get("traceId")).isEqualTo(TRAZA);
     }
 
     @Test

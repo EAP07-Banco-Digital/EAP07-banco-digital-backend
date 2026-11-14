@@ -42,6 +42,9 @@ public class CuentaServiceImpl implements CuentaService {
     private static final SecureRandom GENERADOR_NUMERO_CUENTA = new SecureRandom();
     private static final long MENOR_NUMERO_CUENTA = 1_000_000_000L;
     private static final long CANTIDAD_NUMEROS_CUENTA = 9_000_000_000L;
+    // Con 9.000 millones de numeros posibles, chocar 10 veces seguidas significa
+    // que algo anda mal (la base no responde lo esperado): mejor fallar que girar.
+    static final int MAX_INTENTOS_NUMERO_CUENTA = 10;
 
     private final CuentaRepository cuentaRepository;
     private final TipoCuentaRepository tipoCuentaRepository;
@@ -373,12 +376,17 @@ public class CuentaServiceImpl implements CuentaService {
     }
 
     private String generarNumeroCuentaUnico() {
-        String numero;
-        do {
+        for (int intento = 0; intento < MAX_INTENTOS_NUMERO_CUENTA; intento++) {
             // Siempre 10 digitos: de 1000000000 a 9999999999.
-            numero = String.valueOf(MENOR_NUMERO_CUENTA + GENERADOR_NUMERO_CUENTA.nextLong(CANTIDAD_NUMEROS_CUENTA));
-        } while (cuentaRepository.existsByNumeroCuenta(numero));
-        return numero;
+            String numero = String.valueOf(MENOR_NUMERO_CUENTA + GENERADOR_NUMERO_CUENTA.nextLong(CANTIDAD_NUMEROS_CUENTA));
+            if (!cuentaRepository.existsByNumeroCuenta(numero)) {
+                return numero;
+            }
+        }
+        // IllegalStateException y no NegocioException: no es un error del cliente,
+        // y asi el manejador general lo deja en el log con su traceId.
+        throw new IllegalStateException(
+                "No se pudo generar un numero de cuenta libre tras " + MAX_INTENTOS_NUMERO_CUENTA + " intentos");
     }
 
     private CuentaResponse mapToResponse(Cuenta cuenta) {

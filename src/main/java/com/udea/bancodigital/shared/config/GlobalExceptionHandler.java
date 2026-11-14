@@ -2,6 +2,7 @@ package com.udea.bancodigital.shared.config;
 
 import com.udea.bancodigital.shared.exception.NegocioException;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -21,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -77,6 +80,19 @@ public class GlobalExceptionHandler {
         return construirRespuesta(
                 HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
                 "El parametro '" + exception.getName() + "' no tiene un formato valido",
+                null, request
+        );
+    }
+
+    // Un parametro obligatorio que no llego (ej. ?fechaInicio=... sin fechaFin):
+    // sin este manejador caia en el catch-all y respondia 500.
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> manejarParametroFaltante(
+            MissingServletRequestParameterException exception, HttpServletRequest request) {
+
+        return construirRespuesta(
+                HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+                "El parametro '" + exception.getParameterName() + "' es obligatorio",
                 null, request
         );
     }
@@ -160,9 +176,15 @@ public class GlobalExceptionHandler {
 
     // Red de seguridad: cualquier excepcion no contemplada explicitamente
     // tambien responde en el mismo formato uniforme, nunca con un stacktrace crudo.
+    // El stacktrace va al log con el mismo traceId que recibe el cliente, para
+    // poder encontrar la causa a partir del reporte de un usuario.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> manejarErrorGeneral(
             Exception exception, HttpServletRequest request) {
+
+        log.error("Error no controlado [traceId={}] {} {}",
+                request.getAttribute(TraceIdFilter.TRACE_ID_ATTR),
+                request.getMethod(), request.getRequestURI(), exception);
 
         return construirRespuesta(
                 HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
