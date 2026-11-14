@@ -25,6 +25,14 @@ public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
     @Query("SELECT c FROM Cuenta c WHERE c.numeroCuenta = :numeroCuenta")
     Optional<Cuenta> findByNumeroCuentaForUpdate(@Param("numeroCuenta") String numeroCuenta);
 
+    // DEF-HU5-02: serializa las aperturas de un mismo cliente. El candado de
+    // PostgreSQL se libera solo al terminar la transaccion, asi que la segunda
+    // apertura simultanea espera y luego ve la cuenta que creo la primera.
+    // Se envuelve en un SELECT 1 porque pg_advisory_xact_lock devuelve void,
+    // un tipo que Hibernate no sabe mapear.
+    @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:clienteId)) AS candado", nativeQuery = true)
+    Integer bloquearAperturasDelCliente(@Param("clienteId") Long clienteId);
+
     @Query("SELECT COUNT(c) > 0 FROM Cuenta c " +
            "WHERE c.clienteId = :clienteId " +
            "AND UPPER(c.tipoCuenta.nombre) = UPPER(:tipoCuentaNombre) " +
