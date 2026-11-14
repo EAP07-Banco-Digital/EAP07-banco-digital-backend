@@ -257,4 +257,58 @@ class TransaccionApiImplTest {
         Predicate resultadoPred = spec.toPredicate(root, query, cb);
         assertThat(resultadoPred).isNotNull();
     }
+
+    // ------------------------------------------------------------- HU16 reporte
+
+    @Test
+    void listarMovimientosDevuelveLosDetallesEnElOrdenDeLaConsulta() {
+        OffsetDateTime desde = OffsetDateTime.parse("2026-10-01T00:00:00Z");
+        OffsetDateTime hasta = OffsetDateTime.parse("2026-11-01T00:00:00Z");
+        TipoTransaccion credito = tipoTransaccion(2L, "CREDITO");
+        TipoTransaccion transferencia = tipoTransaccion(1L, "TRANSFERENCIA");
+        given(transaccionRepository.findMovimientosDeCuenta(10L, desde, hasta)).willReturn(List.of(
+                transaccion(1L, 10L, null, credito, new BigDecimal("50.00"), "Deposito",
+                        OffsetDateTime.parse("2026-10-02T10:00:00Z")),
+                transaccion(2L, 10L, 20L, transferencia, new BigDecimal("20.00"), "Pago",
+                        OffsetDateTime.parse("2026-10-03T10:00:00Z"))));
+
+        List<TransaccionApi.TransaccionDetalle> movimientos = transaccionApi.listarMovimientos(10L, desde, hasta);
+
+        assertThat(movimientos).extracting(TransaccionApi.TransaccionDetalle::id).containsExactly(1L, 2L);
+        assertThat(movimientos.get(1).tipoTransaccion()).isEqualTo("TRANSFERENCIA");
+        assertThat(movimientos.get(1).cuentaDestinoId()).isEqualTo(20L);
+        assertThat(movimientos.get(1).descripcion()).isEqualTo("Pago");
+    }
+
+    @Test
+    void calcularEfectoNetoDesdeDevuelveLaSumaDeLaBase() {
+        OffsetDateTime desde = OffsetDateTime.parse("2026-11-01T00:00:00Z");
+        given(transaccionRepository.sumarEfectoNetoDesde(10L, desde)).willReturn(new BigDecimal("-15.50"));
+
+        assertThat(transaccionApi.calcularEfectoNetoDesde(10L, desde)).isEqualByComparingTo("-15.50");
+    }
+
+    @Test
+    void calcularEfectoNetoDesdeSinRespuestaDeLaBaseDevuelveCero() {
+        OffsetDateTime desde = OffsetDateTime.parse("2026-11-01T00:00:00Z");
+        given(transaccionRepository.sumarEfectoNetoDesde(10L, desde)).willReturn(null);
+
+        assertThat(transaccionApi.calcularEfectoNetoDesde(10L, desde)).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void laNaturalezaDeUnMovimientoDependeDeSuTipoYDeLaCuentaQueLoMira() {
+        OffsetDateTime ahora = OffsetDateTime.now();
+        TransaccionApi.TransaccionDetalle deposito =
+                new TransaccionApi.TransaccionDetalle(1L, 10L, null, "CREDITO", BigDecimal.ONE, ahora, null);
+        TransaccionApi.TransaccionDetalle retiro =
+                new TransaccionApi.TransaccionDetalle(2L, 10L, null, "debito", BigDecimal.ONE, ahora, null);
+        TransaccionApi.TransaccionDetalle transferencia =
+                new TransaccionApi.TransaccionDetalle(3L, 10L, 20L, "TRANSFERENCIA", BigDecimal.ONE, ahora, null);
+
+        assertThat(deposito.esCreditoPara(10L)).isTrue();
+        assertThat(retiro.esCreditoPara(10L)).isFalse();
+        assertThat(transferencia.esCreditoPara(10L)).isFalse();
+        assertThat(transferencia.esCreditoPara(20L)).isTrue();
+    }
 }

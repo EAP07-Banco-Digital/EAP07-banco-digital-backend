@@ -18,6 +18,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,6 +58,31 @@ class CuentaControllerSeguridadTest {
                 .andExpect(jsonPath("$.message").value("Debes iniciar sesion para acceder a este recurso"))
                 .andExpect(jsonPath("$.details").isEmpty())
                 .andExpect(jsonPath("$.traceId").isNotEmpty());
+
+        verifyNoInteractions(cuentaService);
+    }
+
+    @Test
+    void reporteDeMovimientosSinTokenResponde401Unauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/cuentas/1234567890/reporte")
+                        .param("fechaInicio", "2026-10-01")
+                        .param("fechaFin", "2026-10-31"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.traceId").isNotEmpty());
+
+        verifyNoInteractions(cuentaService);
+    }
+
+    @Test
+    void reporteDeMovimientosConRolAdminResponde403Forbidden() throws Exception {
+        // Las rutas de cliente siguen cerradas al ADMIN (decision del equipo).
+        mockMvc.perform(get("/api/v1/cuentas/1234567890/reporte")
+                        .with(user("admin@banco.com").roles("ADMIN"))
+                        .param("fechaInicio", "2026-10-01")
+                        .param("fechaFin", "2026-10-31"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
 
         verifyNoInteractions(cuentaService);
     }

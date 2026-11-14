@@ -170,4 +170,20 @@ class CuentaServiceHistorialTest {
         assertNotNull(resultado);
         assertTrue(resultado.isEmpty());
     }
+
+    @Test
+    void consultarHistorial_conFechas_filtraPorDiasDeColombia() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+        LocalDate dia = LocalDate.of(2026, 11, 12);
+
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, dia, dia, null, 1, 10);
+
+        // Un movimiento de las 8 p. m. en Bogota (01:00 UTC del 13) entra en el dia 12.
+        verify(transaccionApi).consultarHistorial(eq(10L),
+                eq(OffsetDateTime.parse("2026-11-12T00:00:00-05:00")),
+                eq(OffsetDateTime.parse("2026-11-12T23:59:59.999999-05:00")),
+                isNull(), any(Pageable.class));
+    }
 }
