@@ -225,6 +225,19 @@ class TransferenciaControllerTest {
     }
 
     @Test
+    void transferirDesdeUnaCuentaOrigenInexistenteDevuelve404ConSuPropioCodigo() throws Exception {
+        elTokenResuelveAlCliente();
+        given(transferenciaService.realizarTransferencia(eq(CLIENTE_ID), any(TransferenciaRequest.class)))
+                .willThrow(new NegocioException("SOURCE_ACCOUNT_NOT_FOUND",
+                        "La cuenta de origen 9999999999 no existe", HttpStatus.NOT_FOUND));
+
+        transferir(solicitud("9999999999", "2000000001", "100000.00"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("SOURCE_ACCOUNT_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("La cuenta de origen 9999999999 no existe"));
+    }
+
+    @Test
     void transferirDesdeUnaCuentaBloqueadaDevuelve409() throws Exception {
         elTokenResuelveAlCliente();
         given(transferenciaService.realizarTransferencia(eq(CLIENTE_ID), any(TransferenciaRequest.class)))

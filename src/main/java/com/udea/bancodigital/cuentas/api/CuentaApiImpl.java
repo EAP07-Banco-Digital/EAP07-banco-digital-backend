@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Implementación de la API pública del módulo de Cuentas.
@@ -30,26 +31,16 @@ public class CuentaApiImpl implements CuentaApi {
 
     @Override
     @Transactional(readOnly = true)
-    public CuentaInfo obtenerInfoPorNumeroCuenta(String numeroCuenta) {
-        return toInfo(cuentaRepository.findByNumeroCuenta(numeroCuenta)
-                .orElseThrow(() -> cuentaNoExiste(numeroCuenta)));
+    public Optional<CuentaInfo> obtenerInfoPorNumeroCuenta(String numeroCuenta) {
+        return cuentaRepository.findByNumeroCuenta(numeroCuenta).map(this::toInfo);
     }
 
     // MANDATORY: un bloqueo fuera de una transaccion se liberaria en cuanto
     // termina la consulta y no protegeria nada; mejor fallar que creerse a salvo.
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public CuentaInfo bloquearPorNumeroCuenta(String numeroCuenta) {
-        return toInfo(cuentaRepository.findByNumeroCuentaForUpdate(numeroCuenta)
-                .orElseThrow(() -> cuentaNoExiste(numeroCuenta)));
-    }
-
-    private NegocioException cuentaNoExiste(String numeroCuenta) {
-        return new NegocioException(
-                "DESTINATION_ACCOUNT_NOT_FOUND",
-                "La cuenta " + numeroCuenta + " no existe",
-                HttpStatus.NOT_FOUND
-        );
+    public Optional<CuentaInfo> bloquearPorNumeroCuenta(String numeroCuenta) {
+        return cuentaRepository.findByNumeroCuentaForUpdate(numeroCuenta).map(this::toInfo);
     }
 
     private CuentaInfo toInfo(Cuenta cuenta) {
