@@ -23,6 +23,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -106,7 +108,7 @@ class AuthServiceTest {
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessage("Credenciales invalidas");
 
-        verifyNoInteractions(passwordEncoder, jwtService);
+        verifyNoInteractions(jwtService);
     }
 
     @Test
@@ -121,15 +123,18 @@ class AuthServiceTest {
         verify(jwtService, never()).generarToken(anyLong(), anyString());
     }
 
+    // Usuario inactivo debe esperar el mensaje genérico y contar el intento:
     @Test
     void loginConUsuarioInactivoFallaAunqueLaContrasenaSeaCorrecta() {
-        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("INACTIVO")));
+        Usuario usuario = usuarioConEstado("INACTIVO");
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
         given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
 
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)))
                 .isInstanceOf(BadCredentialsException.class)
-                .hasMessage("El usuario no esta activo");
+                .hasMessage("Credenciales invalidas");
 
+        assertThat(usuario.getIntentosFallidos()).isEqualTo(1);
         verify(jwtService, never()).generarToken(anyLong(), anyString());
     }
 
@@ -230,5 +235,55 @@ class AuthServiceTest {
 
         verify(revocacionTokenService).revocar(token);
         verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    // ------------------------------------------------------ DEF-HU2-03
+
+    @Test
+    void unUsuarioInactivoRespondeLoMismoConContrasenaCorrectaQueIncorrecta() {
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("INACTIVO")));
+        given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
+        given(passwordEncoder.matches("Incorrecta1!", CLAVE_ENCRIPTADA)).willReturn(false);
+
+        Throwable conClaveCorrecta = catchThrowable(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)));
+        Throwable conClaveIncorrecta = catchThrowable(() -> authService.login(new LoginRequestDTO(CORREO, "Incorrecta1!")));
+
+        assertThat(conClaveCorrecta)
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessage("Credenciales invalidas");
+        assertThat(conClaveIncorrecta)
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessage(conClaveCorrecta.getMessage());
+    }
+
+    @Test
+    void losIntentosConUnUsuarioInactivoTambienCuentanParaElBloqueo() {
+        Usuario usuario = usuarioConEstado("INACTIVO");
+        usuario.setIntentosFallidos(4);
+        usuario.setPrimerIntentoFallido(OffsetDateTime.now().minusMinutes(5));
+        given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches(CLAVE, CLAVE_ENCRIPTADA)).willReturn(true);
+
+        assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)))
+                .isInstanceOf(NegocioException.class)
+                .hasMessage("Cuenta temporalmente bloqueada");
+
+        assertThat(usuario.getIntentosFallidos()).isEqualTo(5);
+        assertThat(usuario.getBloqueadoHasta()).isAfter(OffsetDateTime.now().plusMinutes(29));
+        verify(usuarioRepository).save(usuario);
+    }
+
+    @Test
+    void loginConCorreoNoRegistradoGastaUnaComparacionBcryptContraElHashFicticio() {
+        given(passwordEncoder.encode(anyString())).willReturn(CLAVE_ENCRIPTADA);
+        authService.prepararHashFicticio();
+
+        assertThatThrownBy(() -> authService.login(new LoginRequestDTO("nadie@banco.com", CLAVE)))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessage("Credenciales invalidas");
+
+        // Mismo trabajo que con un correo registrado: no se nota por el tiempo de respuesta.
+        verify(passwordEncoder).matches(CLAVE, CLAVE_ENCRIPTADA);
+        verify(usuarioRepository, never()).save(any(Usuario.class));
     }
 }

@@ -150,12 +150,12 @@ class AuthControllerTest {
 
     @Test
     void loginDeUnUsuarioInactivoDevuelve401() throws Exception {
-        willThrow(new BadCredentialsException("El usuario no esta activo")).given(authService).login(any());
+        willThrow(new BadCredentialsException("Credenciales invalidas")).given(authService).login(any());
 
         iniciarSesion(credencialesValidas())
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_CREDENTIALS"))
-                .andExpect(jsonPath("$.message").value("El usuario no esta activo"));
+                .andExpect(jsonPath("$.message").value("Credenciales invalidas"));
     }
 
     @Test
