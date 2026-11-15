@@ -39,4 +39,24 @@ public final class DiaBancario {
     public static OffsetDateTime ultimoInstante(LocalDate dia) {
         return finExclusivo(dia).minus(1, ChronoUnit.MICROS);
     }
+
+    /**
+     * Instante actual en la zona del banco, a precision de microsegundos.
+     * PostgreSQL guarda microsegundos y redondea el resto: truncar aqui hace que lo
+     * que responde la apertura sea exactamente lo que queda guardado.
+     */
+    public static OffsetDateTime ahora() {
+        return OffsetDateTime.now(ZONA).truncatedTo(ChronoUnit.MICROS);
+    }
+
+    /**
+     * Mismo instante expresado en la zona del banco. PostgreSQL entrega los timestamptz
+     * en UTC; con esto toda fecha sale con el mismo desplazamiento (-05:00).
+     */
+    public static OffsetDateTime enZonaDelBanco(OffsetDateTime fecha) {
+        if (fecha == null) {
+            return null;
+        }
+        return fecha.atZoneSameInstant(ZONA).toOffsetDateTime().truncatedTo(ChronoUnit.MICROS);
+    }
 }

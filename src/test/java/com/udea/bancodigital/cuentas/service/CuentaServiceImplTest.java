@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.List;
 
@@ -398,4 +399,35 @@ class CuentaServiceImplTest {
         verifyNoInteractions(cuentaRepository);
     }
 
+    @Test
+    void aperturaResponseLaFechaEnLaZonaDelBancoYConPrecisionDeMicrosegundos() {
+        given(tipoCuentaRepository.findByNombreIgnoreCase("AHORROS")).willReturn(Optional.of(tipo("AHORROS")));
+        given(cuentaRepository.existsCuentaActivaPorClienteYTipo(CLIENTE_ID, "AHORROS")).willReturn(false);
+        given(estadoRepository.findByNombreIgnoreCase("ACTIVA")).willReturn(Optional.of(estado("ACTIVA")));
+        given(cuentaRepository.saveAndFlush(any(Cuenta.class))).willAnswer(inv -> {
+            Cuenta cuenta = inv.getArgument(0);
+            cuenta.setId(1L);
+            return cuenta;
+        });
+
+        CuentaResponse respuesta = cuentaService.solicitarAperturaCuenta(CLIENTE_ID, new AperturaCuentaRequest("AHORROS"));
+
+        assertThat(respuesta.getFechaApertura().getOffset()).isEqualTo(ZoneOffset.of("-05:00"));
+        assertThat(respuesta.getFechaApertura().getNano() % 1000).isZero();
+    }
+
+    @Test
+    void saldoYListadoResponsenLaMismaFechaDeAperturaAunqueLaBaseLaEntregueEnUtc() {
+        // PostgreSQL devuelve los timestamptz en UTC.
+        Cuenta guardada = cuenta(1L, CLIENTE_ID, NUMERO, tipo("AHORROS"), "500000.00", "ACTIVA");
+        guardada.setFechaApertura(OffsetDateTime.parse("2026-10-24T21:09:32.076219Z"));
+        given(cuentaRepository.findByNumeroCuenta(NUMERO)).willReturn(Optional.of(guardada));
+        given(cuentaRepository.findByClienteIdOrderByFechaAperturaDesc(CLIENTE_ID)).willReturn(List.of(guardada));
+
+        OffsetDateTime enSaldo = cuentaService.consultarSaldo(CLIENTE_ID, NUMERO).getFechaApertura();
+        OffsetDateTime enLista = cuentaService.listarCuentas(CLIENTE_ID, null).get(0).getFechaApertura();
+
+        assertThat(enSaldo).isEqualTo(OffsetDateTime.parse("2026-10-24T16:09:32.076219-05:00"));
+        assertThat(enLista).isEqualTo(enSaldo);
+    }
 }

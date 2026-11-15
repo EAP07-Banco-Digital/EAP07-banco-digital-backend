@@ -101,13 +101,14 @@ public class CuentaServiceImpl implements CuentaService {
         String numeroCuentaUnico = generarNumeroCuentaUnico();
 
         // 5. Construir y guardar la cuenta con saldo 0
+        // cambiamos la fecha de apertura a la zona del banco (Colombia) para que el reporte de "hoy" sea completo
         Cuenta nuevaCuenta = Cuenta.builder()
                 .clienteId(clienteId)
                 .numeroCuenta(numeroCuentaUnico)
                 .tipoCuenta(tipoCuenta)
                 .saldoDisponible(BigDecimal.ZERO)
                 .estado(estadoActiva)
-                .fechaApertura(OffsetDateTime.now())
+                .fechaApertura(DiaBancario.ahora())
                 .build();
 
         Cuenta cuentaGuardada;
@@ -533,6 +534,7 @@ public class CuentaServiceImpl implements CuentaService {
                 "No se pudo generar un numero de cuenta libre tras " + MAX_INTENTOS_NUMERO_CUENTA + " intentos");
     }
 
+    // Cambiamos la fecha de apertura a la zona del banco (Colombia) para que el reporte de "hoy" sea completo
     private CuentaResponse mapToResponse(Cuenta cuenta) {
         return CuentaResponse.builder()
                 .id(cuenta.getId())
@@ -541,7 +543,7 @@ public class CuentaServiceImpl implements CuentaService {
                 .tipoCuenta(cuenta.getTipoCuenta().getNombre())
                 .saldoDisponible(cuenta.getSaldoDisponible())
                 .estado(cuenta.getEstado().getNombre())
-                .fechaApertura(cuenta.getFechaApertura())
+                .fechaApertura(DiaBancario.enZonaDelBanco(cuenta.getFechaApertura()))
                 .build();
     }
 
@@ -551,7 +553,7 @@ public class CuentaServiceImpl implements CuentaService {
                 .numeroCuenta(cuenta.getNumeroCuenta())
                 .tipoCuenta(cuenta.getTipoCuenta().getNombre())
                 .estado(cuenta.getEstado().getNombre())
-                .fechaApertura(cuenta.getFechaApertura())
+                .fechaApertura(DiaBancario.enZonaDelBanco(cuenta.getFechaApertura()))
                 .build();
     }
 }
