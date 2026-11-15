@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -79,4 +80,35 @@ public interface TransaccionApi {
      * su saldo actual. Devuelve cero si no hay movimientos.
      */
     BigDecimal calcularEfectoNetoDesde(Long cuentaId, OffsetDateTime desde);
+
+    /**
+     * HU20: una operacion tal como la ve un administrador, con su estado.
+     */
+    record OperacionInfo(
+            Long id,
+            Long cuentaOrigenId,
+            Long cuentaDestinoId,
+            String tipoTransaccion,
+            BigDecimal monto,
+            String estado,
+            OffsetDateTime fechaHora,
+            String descripcion
+    ) {}
+
+    /**
+     * HU20: operaciones que cumplen todos los filtros dados, en orden
+     * cronologico. Un filtro nulo no restringe.
+     *
+     * @param desde     fecha y hora minima (incluida)
+     * @param hasta     fecha y hora maxima (excluida)
+     * @param cuentaIds operaciones donde alguna de estas cuentas es origen o destino;
+     *                  una coleccion vacia no devuelve nada
+     * @param estado    estado de la transaccion (ej. EXITOSA), sin distinguir mayusculas
+     */
+    List<OperacionInfo> buscarOperaciones(
+            OffsetDateTime desde,
+            OffsetDateTime hasta,
+            Collection<Long> cuentaIds,
+            String estado
+    );
 }

@@ -36,6 +36,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class TransaccionApiImplTest {
@@ -310,5 +311,30 @@ class TransaccionApiImplTest {
         assertThat(retiro.esCreditoPara(10L)).isFalse();
         assertThat(transferencia.esCreditoPara(10L)).isFalse();
         assertThat(transferencia.esCreditoPara(20L)).isTrue();
+    }
+
+    // ------------------------------------------------------------- HU20 reportes
+
+    @Test
+    void buscarOperacionesConUnaListaVaciaDeCuentasNoConsultaLaBase() {
+        assertThat(transaccionApi.buscarOperaciones(null, null, List.of(), null)).isEmpty();
+
+        verifyNoInteractions(transaccionRepository);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void buscarOperacionesIncluyeElEstadoDeCadaOperacion() {
+        TipoTransaccion debito = tipoTransaccion(3L, "DEBITO");
+        given(transaccionRepository.findAll(any(Specification.class), any(org.springframework.data.domain.Sort.class)))
+                .willReturn(List.of(transaccion(7L, 10L, null, debito, new BigDecimal("9.99"), "Retiro",
+                        OffsetDateTime.parse("2026-10-02T10:00:00Z"))));
+
+        List<TransaccionApi.OperacionInfo> operaciones = transaccionApi.buscarOperaciones(null, null, null, "exitosa");
+
+        assertThat(operaciones).hasSize(1);
+        assertThat(operaciones.get(0).estado()).isEqualTo("EXITOSA");
+        assertThat(operaciones.get(0).tipoTransaccion()).isEqualTo("DEBITO");
+        assertThat(operaciones.get(0).cuentaDestinoId()).isNull();
     }
 }

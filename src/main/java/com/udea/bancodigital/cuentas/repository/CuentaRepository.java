@@ -2,11 +2,13 @@ package com.udea.bancodigital.cuentas.repository;
 
 import com.udea.bancodigital.cuentas.entity.Cuenta;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.List;
 
@@ -17,6 +19,10 @@ public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
     boolean existsByNumeroCuenta(String numeroCuenta);
 
     List<Cuenta> findByClienteIdOrderByFechaAperturaDesc(Long clienteId);
+
+    // HU20: varias cuentas con su estado y tipo en la misma consulta.
+    @EntityGraph(attributePaths = {"estado", "tipoCuenta"})
+    List<Cuenta> findByIdIn(Collection<Long> ids);
 
     // SELECT ... FOR UPDATE: la fila queda bloqueada hasta que termine la
     // transaccion, asi dos operaciones sobre la misma cuenta no leen el mismo
