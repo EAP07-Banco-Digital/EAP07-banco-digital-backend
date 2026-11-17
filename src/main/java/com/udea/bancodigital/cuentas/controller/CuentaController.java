@@ -141,7 +141,7 @@ public class CuentaController {
     public ResponseEntity<OperacionCuentaResponse> registrarCredito(
             @Parameter(description = "Número de cuenta bancaria", example = "1234567890", required = true)
             @PathVariable String numeroCuenta,
-            @RequestBody OperacionCuentaRequest request) {
+            @Valid @RequestBody OperacionCuentaRequest request) {
 
         String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         Long clienteId = usuarioApi.obtenerIdClientePorEmail(email);
@@ -175,7 +175,7 @@ public class CuentaController {
     public ResponseEntity<OperacionCuentaResponse> registrarDebito(
             @Parameter(description = "Número de cuenta bancaria", example = "1234567890", required = true)
             @PathVariable String numeroCuenta,
-            @RequestBody OperacionCuentaRequest request) {
+            @Valid @RequestBody OperacionCuentaRequest request) {
 
         String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         Long clienteId = usuarioApi.obtenerIdClientePorEmail(email);
