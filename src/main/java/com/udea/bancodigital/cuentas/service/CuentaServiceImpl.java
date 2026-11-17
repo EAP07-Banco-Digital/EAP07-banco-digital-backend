@@ -52,6 +52,9 @@ public class CuentaServiceImpl implements CuentaService {
     private static final SecureRandom GENERADOR_NUMERO_CUENTA = new SecureRandom();
     private static final long MENOR_NUMERO_CUENTA = 1_000_000_000L;
     private static final long CANTIDAD_NUMEROS_CUENTA = 9_000_000_000L;
+    // numeric(15,2): 13 dígitos enteros y 2 decimales. Pasarse haría que la base
+    // falle con "numeric field overflow" y el cliente recibiría un 409 sin explicación.
+    private static final BigDecimal SALDO_MAXIMO = new BigDecimal("9999999999999.99");
     // Con 9.000 millones de numeros posibles, chocar 10 veces seguidas significa
     // que algo anda mal (la base no responde lo esperado): mejor fallar que girar.
     static final int MAX_INTENTOS_NUMERO_CUENTA = 10;
@@ -198,6 +201,13 @@ public class CuentaServiceImpl implements CuentaService {
         Cuenta cuenta = obtenerCuentaActiva(clienteId, numeroCuenta);
 
         BigDecimal nuevoSaldo = cuenta.getSaldoDisponible().add(request.getMonto());
+        if (nuevoSaldo.compareTo(SALDO_MAXIMO) > 0) {
+            throw new NegocioException(
+                    "BALANCE_LIMIT_EXCEEDED",
+                    "El depósito supera el saldo máximo permitido en la cuenta",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
         cuenta.setSaldoDisponible(nuevoSaldo);
         cuentaRepository.save(cuenta);
 
@@ -494,7 +504,11 @@ public class CuentaServiceImpl implements CuentaService {
     }
 
     private Cuenta obtenerCuentaActiva(Long clienteId, String numeroCuenta) {
-        Cuenta cuenta = cuentaRepository.findByNumeroCuenta(numeroCuenta).orElse(null);
+        // SELECT ... FOR UPDATE: la fila queda bloqueada hasta que termine la
+        // transacción, así dos operaciones sobre la misma cuenta no leen el mismo
+        // saldo. Debe ser la PRIMERA lectura de la cuenta en la transacción; si se
+        // carga antes sin bloqueo, Hibernate conserva el saldo viejo.
+        Cuenta cuenta = cuentaRepository.findByNumeroCuentaForUpdate(numeroCuenta).orElse(null);
         if (cuenta == null) {
             throw new NegocioException(
                     "ACCOUNT_NOT_FOUND",
