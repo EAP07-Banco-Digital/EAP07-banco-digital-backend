@@ -75,7 +75,7 @@ class CuentaServiceOperacionesTest {
         TransaccionApi.TransaccionInfo infoMock = new TransaccionApi.TransaccionInfo(201L, OffsetDateTime.now());
 
         given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
-        given(transaccionApi.registrarTransaccion(eq(10L), isNull(), eq("CREDITO"), eq(new BigDecimal("50000.00")), anyString()))
+        given(transaccionApi.registrarTransaccion(isNull(), eq(10L), eq("CREDITO"), eq(new BigDecimal("50000.00")), anyString()))
                 .willReturn(infoMock);
 
         OperacionCuentaResponse response = cuentaService.registrarCredito(CLIENTE_ID, NUMERO_CUENTA, request);
@@ -89,7 +89,7 @@ class CuentaServiceOperacionesTest {
         assertEquals(new BigDecimal("150000.00"), cuentaActiva.getSaldoDisponible());
 
         verify(cuentaRepository).save(cuentaActiva);
-        verify(transaccionApi).registrarTransaccion(eq(10L), isNull(), eq("CREDITO"), eq(new BigDecimal("50000.00")), anyString());
+        verify(transaccionApi).registrarTransaccion(isNull(), eq(10L), eq("CREDITO"), eq(new BigDecimal("50000.00")), anyString());
     }
 
     @Test
