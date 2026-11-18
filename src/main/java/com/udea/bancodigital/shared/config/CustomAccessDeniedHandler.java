@@ -27,7 +27,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
         Map<String, Object> body = new HashMap<>();
         body.put("errorCode", "FORBIDDEN");
-        body.put("message", "No tienes permisos para realizar esta operacion");
+        body.put("message", "No tienes permisos para realizar esta operación");
         body.put("details", null);
         body.put("traceId", request.getAttribute(TraceIdFilter.TRACE_ID_ATTR));
 

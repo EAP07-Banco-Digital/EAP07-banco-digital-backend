@@ -104,7 +104,7 @@ class AuthServiceTest {
         // Un Optional vacio es el retorno por defecto del mock: el usuario no existe.
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO("nadie@banco.com", CLAVE)))
                 .isInstanceOf(BadCredentialsException.class)
-                .hasMessage("Credenciales invalidas");
+                .hasMessage("Credenciales inválidas");
 
         verifyNoInteractions(passwordEncoder, jwtService);
     }
@@ -116,7 +116,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, "Incorrecta1!")))
                 .isInstanceOf(BadCredentialsException.class)
-                .hasMessage("Credenciales invalidas");
+                .hasMessage("Credenciales inválidas");
 
         verify(jwtService, never()).generarToken(anyLong(), anyString());
     }
@@ -128,7 +128,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, CLAVE)))
                 .isInstanceOf(BadCredentialsException.class)
-                .hasMessage("El usuario no esta activo");
+                .hasMessage("El usuario no está activo");
 
         verify(jwtService, never()).generarToken(anyLong(), anyString());
     }
@@ -149,14 +149,14 @@ class AuthServiceTest {
         // probando el login y leyendo la respuesta.
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO("nadie@banco.com", CLAVE)))
                 .isInstanceOf(BadCredentialsException.class)
-                .hasMessage("Credenciales invalidas");
+                .hasMessage("Credenciales inválidas");
 
         given(usuarioRepository.findByEmailForUpdate(CORREO)).willReturn(Optional.of(usuarioConEstado("ACTIVO")));
         given(passwordEncoder.matches("Incorrecta1!", CLAVE_ENCRIPTADA)).willReturn(false);
 
         assertThatThrownBy(() -> authService.login(new LoginRequestDTO(CORREO, "Incorrecta1!")))
                 .isInstanceOf(BadCredentialsException.class)
-                .hasMessage("Credenciales invalidas");
+                .hasMessage("Credenciales inválidas");
     }
 
     @Test
