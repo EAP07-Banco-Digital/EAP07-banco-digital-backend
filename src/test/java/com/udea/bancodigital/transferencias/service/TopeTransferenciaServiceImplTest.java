@@ -28,295 +28,295 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class TopeTransferenciaServiceImplTest {
 
-            private static final Long CLIENTE_ID = 
+    private static final Long CLIENTE_ID = 42L;
 
-            @
-            private TopeTransferenciaRepository topeTransferenciaReposit
+    @Mock
+    private TopeTransferenciaRepository topeTransferenciaRepository;
 
-            @InjectM
-            private TopeTransferenciaServiceImpl topeTransferenciaServ
+    @InjectMocks
+    private TopeTransferenciaServiceImpl topeTransferenciaService;
 
-            // ==================== HU17: Consultar Topes ================
+    // ==================== HU17: Consultar Topes ====================
 
-            @
-            @DisplayName("ESCENARIO 1 (HU17): Cliente con topes personalizados retorna dichos valores y esPersonalizado=tr
-            void consultarTopes_conTopesPersonalizados_retornaTopesPersonalizados
-                        TopeTransferencia topePersonalizado = TopeTransferencia.b
-                                       
-                                                .clien
-                                                .montoMaximoIndividual(new BigDecima
-                                                .montoMaximoAcumulado(new BigDecima
-                                                .p
-                                                .fechaActualizacion(Offse
-                                         
+    @Test
+    @DisplayName("ESCENARIO 1 (HU17): Cliente con topes personalizados retorna dichos valores y esPersonalizado=true")
+    void consultarTopes_conTopesPersonalizados_retornaTopesPersonalizados() {
+        TopeTransferencia topePersonalizado = TopeTransferencia.builder()
+                .id(1L)
+                .clienteId(CLIENTE_ID)
+                .montoMaximoIndividual(new BigDecimal("3000000.00"))
+                .montoMaximoAcumulado(new BigDecimal("8000000.00"))
+                .periodo("DIARIO")
+                .fechaActualizacion(OffsetDateTime.now())
+                .build();
 
-                        given(topeTransferenciaRepository.findByClienteId(CLIE
-                                                .willReturn(Optional.of(tope
+        given(topeTransferenciaRepository.findByClienteId(CLIENTE_ID))
+                .willReturn(Optional.of(topePersonalizado));
 
-                        TopeTransferenciaResponse response = topeTransferenciaService.consultarTopesParaCliente(CLIE
+        TopeTransferenciaResponse response = topeTransferenciaService.consultarTopesParaCliente(CLIENTE_ID);
 
-                        assertThat(response).isNo
-                        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("30000
-                        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("80000
-                        assertThat(response.getPeriodo()).isEqualTo("D
-                        assertThat(response.isEsPersonalizado()).i
+        assertThat(response).isNotNull();
+        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("3000000.00");
+        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("8000000.00");
+        assertThat(response.getPeriodo()).isEqualTo("DIARIO");
+        assertThat(response.isEsPersonalizado()).isTrue();
 
-                        verify(topeTransferenciaRepository).findByClienteId(CLIE
-         
+        verify(topeTransferenciaRepository).findByClienteId(CLIENTE_ID);
+    }
 
-            @
-            @DisplayName("ESCENARIO 2 (HU17): Cliente sin topes personalizados retorna topes predeterminados del banco y esPersonalizado=fal
-            void consultarTopes_sinTopesPersonalizados_retornaPredeterminadosDelBanco
-                        TopeTransferencia topeGlobal = TopeTransferencia.b
-                                        
-                                                
-                                                .montoMaximoIndividual(new BigDecima
-                                                .montoMaximoAcumulado(new BigDecimal
-                                                .p
-                                                .fechaActualizacion(Offse
-                                         
+    @Test
+    @DisplayName("ESCENARIO 2 (HU17): Cliente sin topes personalizados retorna topes predeterminados del banco y esPersonalizado=false")
+    void consultarTopes_sinTopesPersonalizados_retornaPredeterminadosDelBanco() {
+        TopeTransferencia topeGlobal = TopeTransferencia.builder()
+                .id(99L)
+                .clienteId(null)
+                .montoMaximoIndividual(new BigDecimal("5000000.00"))
+                .montoMaximoAcumulado(new BigDecimal("15000000.00"))
+                .periodo("DIARIO")
+                .fechaActualizacion(OffsetDateTime.now())
+                .build();
 
-                        given(topeTransferenciaRepository.findByClienteId(CLIE
-                                                .willReturn(Op
-                        given(topeTransferenciaRepository.findByClienteIdI
-                                                .willReturn(Optional.
+        given(topeTransferenciaRepository.findByClienteId(CLIENTE_ID))
+                .willReturn(Optional.empty());
+        given(topeTransferenciaRepository.findByClienteIdIsNull())
+                .willReturn(Optional.of(topeGlobal));
 
-                        TopeTransferenciaResponse response = topeTransferenciaService.consultarTopesParaCliente(CLIE
+        TopeTransferenciaResponse response = topeTransferenciaService.consultarTopesParaCliente(CLIENTE_ID);
 
-                        assertThat(response).isNo
-                        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("50000
-                        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("150000
-                        assertThat(response.getPeriodo()).isEqualTo("D
-                        assertThat(response.isEsPersonalizado()).is
+        assertThat(response).isNotNull();
+        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("5000000.00");
+        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("15000000.00");
+        assertThat(response.getPeriodo()).isEqualTo("DIARIO");
+        assertThat(response.isEsPersonalizado()).isFalse();
 
-                        verify(topeTransferenciaRepository).findByClienteId(CLIE
-                        verify(topeTransferenciaRepository).findByClienteIdI
-         
+        verify(topeTransferenciaRepository).findByClienteId(CLIENTE_ID);
+        verify(topeTransferenciaRepository).findByClienteIdIsNull();
+    }
 
-            @
-            @DisplayName("Sin topes configurados en BD (ni personalizados ni globales) lanza NegocioException SERVICE_UNAVAILAB
-            void consultarTopes_sinTopesEnBD_lanzaNegocioException
-                        given(topeTransferenciaRepository.findByClienteId(CLIE
-                                                .willReturn(Op
-                        given(topeTransferenciaRepository.findByClienteIdI
-                                                .willReturn(Op
+    @Test
+    @DisplayName("Sin topes configurados en BD (ni personalizados ni globales) lanza NegocioException SERVICE_UNAVAILABLE")
+    void consultarTopes_sinTopesEnBD_lanzaNegocioException() {
+        given(topeTransferenciaRepository.findByClienteId(CLIENTE_ID))
+                .willReturn(Optional.empty());
+        given(topeTransferenciaRepository.findByClienteIdIsNull())
+                .willReturn(Optional.empty());
 
-                        assertThatThrownBy(() -> topeTransferenciaService.consultarTopesParaCliente(CLIE
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualTo("TOPE
-                                                            assertThat(ne.getStatus()).isEqualTo(HttpStatus.S
-                                   
-         
+        assertThatThrownBy(() -> topeTransferenciaService.consultarTopesParaCliente(CLIENTE_ID))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo("TOPES_NO_CONFIGURADOS");
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                });
+    }
 
-            @
-            @DisplayName("ESCENARIO 3 (HU17): Sin clienteId (no autenticado) lanza NegocioException UNAUTHORIZ
-            void consultarTopes_clienteIdNulo_lanzaNegocioExceptionUnauthorized
-                        assertThatThrownBy(() -> topeTransferenciaService.consultarTopesParaClient
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualTo(Codigos
-                                                            assertThat(ne.getStatus()).isEqualTo(HttpS
-                                   
-         
+    @Test
+    @DisplayName("ESCENARIO 3 (HU17): Sin clienteId (no autenticado) lanza NegocioException UNAUTHORIZED")
+    void consultarTopes_clienteIdNulo_lanzaNegocioExceptionUnauthorized() {
+        assertThatThrownBy(() -> topeTransferenciaService.consultarTopesParaCliente(null))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo(CodigosError.UNAUTHORIZED);
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                });
+    }
 
-            // ==================== HU18: Configurar Topes ================
+    // ==================== HU18: Configurar Topes ====================
 
-            @
-            @DisplayName("HU18: Administrador configura valores válidos por primera vez (crea registro globa
-            void configurarTopesGlobales_primeraVez_creaYPersisteRegistroGlobal
-                        ConfigurarTopesRequest request = ConfigurarTopesRequest.b
-                                                .montoMaximoPorTransferencia(new BigDecima
-                                                .montoMaximoAcumuladoPeriodo(new BigDecimal
-                                         
+    @Test
+    @DisplayName("HU18: Administrador configura valores válidos por primera vez (crea registro global)")
+    void configurarTopesGlobales_primeraVez_creaYPersisteRegistroGlobal() {
+        ConfigurarTopesRequest request = ConfigurarTopesRequest.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("5000000.00"))
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("15000000.00"))
+                .build();
 
-                        given(topeTransferenciaRepository.findByClienteIdI
-                                                .willReturn(Op
+        given(topeTransferenciaRepository.findByClienteIdIsNull())
+                .willReturn(Optional.empty());
 
-                        given(topeTransferenciaRepository.save(any(TopeTransferencia.
-                                                .wil
-                                                            TopeTransferencia t =
-                                                     
-                                                 
-                                   
+        given(topeTransferenciaRepository.save(any(TopeTransferencia.class)))
+                .willAnswer(inv -> {
+                    TopeTransferencia t = inv.getArgument(0);
+                    t.setId(10L);
+                    return t;
+                });
 
-                        TopeTransferenciaResponse response = topeTransferenciaService.configurarTopesGlobales(r
+        TopeTransferenciaResponse response = topeTransferenciaService.configurarTopesGlobales(request);
 
-                        assertThat(response).isNo
-                        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("50000
-                        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("150000
-                        assertThat(response.getPeriodo()).isEqualTo("D
-                        assertThat(response.isEsPersonalizado()).is
+        assertThat(response).isNotNull();
+        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("5000000.00");
+        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("15000000.00");
+        assertThat(response.getPeriodo()).isEqualTo("DIARIO");
+        assertThat(response.isEsPersonalizado()).isFalse();
 
-                        ArgumentCaptor<TopeTransferencia> captor = ArgumentCaptor.forClass(TopeTransferencia
-                        verify(topeTransferenciaRepository).save(captor.cap
-                        TopeTransferencia guardado = captor.get
-                        assertThat(guardado.getClienteId()).i
-                        assertThat(guardado.getMontoMaximoIndividual()).isEqualByComparingTo("50000
-                        assertThat(guardado.getMontoMaximoAcumulado()).isEqualByComparingTo("150000
-                        assertThat(guardado.getPeriodo()).isEqualTo("D
-                        assertThat(guardado.getFechaActualizacion()).isNo
-         
+        ArgumentCaptor<TopeTransferencia> captor = ArgumentCaptor.forClass(TopeTransferencia.class);
+        verify(topeTransferenciaRepository).save(captor.capture());
+        TopeTransferencia guardado = captor.getValue();
+        assertThat(guardado.getClienteId()).isNull();
+        assertThat(guardado.getMontoMaximoIndividual()).isEqualByComparingTo("5000000.00");
+        assertThat(guardado.getMontoMaximoAcumulado()).isEqualByComparingTo("15000000.00");
+        assertThat(guardado.getPeriodo()).isEqualTo("DIARIO");
+        assertThat(guardado.getFechaActualizacion()).isNotNull();
+    }
 
-            @
-            @DisplayName("HU18: Administrador actualiza valores válidos sobre registro global existente (no duplic
-            void configurarTopesGlobales_actualizacion_modificaRegistroExistenteSinDuplicar
-                        ConfigurarTopesRequest request = ConfigurarTopesRequest.b
-                                                .montoMaximoPorTransferencia(new BigDecima
-                                                .montoMaximoAcumuladoPeriodo(new BigDecimal
-                                         
+    @Test
+    @DisplayName("HU18: Administrador actualiza valores válidos sobre registro global existente (no duplica)")
+    void configurarTopesGlobales_actualizacion_modificaRegistroExistenteSinDuplicar() {
+        ConfigurarTopesRequest request = ConfigurarTopesRequest.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("8000000.00"))
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("20000000.00"))
+                .build();
 
-                        TopeTransferencia existente = TopeTransferencia.b
-                                       
-                                                
-                                                .montoMaximoIndividual(new BigDecima
-                                                .montoMaximoAcumulado(new BigDecimal
-                                                .p
-                                                .fechaActualizacion(OffsetDateTime.now
-                                         
+        TopeTransferencia existente = TopeTransferencia.builder()
+                .id(5L)
+                .clienteId(null)
+                .montoMaximoIndividual(new BigDecimal("5000000.00"))
+                .montoMaximoAcumulado(new BigDecimal("10000000.00"))
+                .periodo("DIARIO")
+                .fechaActualizacion(OffsetDateTime.now().minusDays(1))
+                .build();
 
-                        given(topeTransferenciaRepository.findByClienteIdI
-                                                .willReturn(Optional
+        given(topeTransferenciaRepository.findByClienteIdIsNull())
+                .willReturn(Optional.of(existente));
 
-                        given(topeTransferenciaRepository.save(any(TopeTransferencia.
-                                                .willAnswer(inv -> inv.
+        given(topeTransferenciaRepository.save(any(TopeTransferencia.class)))
+                .willAnswer(inv -> inv.getArgument(0));
 
-                        TopeTransferenciaResponse response = topeTransferenciaService.configurarTopesGlobales(r
+        TopeTransferenciaResponse response = topeTransferenciaService.configurarTopesGlobales(request);
 
-                        assertThat(response).isNo
-                        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("80000
-                        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("200000
-                        assertThat(response.getPeriodo()).isEqualTo("D
-                        assertThat(response.isEsPersonalizado()).is
+        assertThat(response).isNotNull();
+        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("8000000.00");
+        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("20000000.00");
+        assertThat(response.getPeriodo()).isEqualTo("DIARIO");
+        assertThat(response.isEsPersonalizado()).isFalse();
 
-                        verify(topeTransferenciaRepository).save(exi
-                        assertThat(existente.getId()).isEqua
-                        assertThat(existente.getClienteId()).i
-         
+        verify(topeTransferenciaRepository).save(existente);
+        assertThat(existente.getId()).isEqualTo(5L);
+        assertThat(existente.getClienteId()).isNull();
+    }
 
-            @
-            @DisplayName("HU18 Validación: Monto individual igual a cero lanza BAD_REQUE
-            void configurarTopesGlobales_montoIndividualCero_lanzaNegocioException
-                        ConfigurarTopesRequest request = ConfigurarTopesRequest.b
-                                                .montoMaximoPorTransferencia(
-                                                .montoMaximoAcumuladoPeriodo(new BigDecimal
-                                         
+    @Test
+    @DisplayName("HU18 Validación: Monto individual igual a cero lanza BAD_REQUEST")
+    void configurarTopesGlobales_montoIndividualCero_lanzaNegocioException() {
+        ConfigurarTopesRequest request = ConfigurarTopesRequest.builder()
+                .montoMaximoPorTransferencia(BigDecimal.ZERO)
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("10000000.00"))
+                .build();
 
-                        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(r
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualT
-                                                            assertThat(ne.getStatus()).isEqualTo(Http
-                                   
-         
+        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(request))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo("INVALID_LIMITS");
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+    }
 
-            @
-            @DisplayName("HU18 Validación: Monto individual negativo lanza BAD_REQUE
-            void configurarTopesGlobales_montoIndividualNegativo_lanzaNegocioException
-                        ConfigurarTopesRequest request = ConfigurarTopesRequest.b
-                                                .montoMaximoPorTransferencia(new BigDeci
-                                                .montoMaximoAcumuladoPeriodo(new BigDecimal
-                                         
+    @Test
+    @DisplayName("HU18 Validación: Monto individual negativo lanza BAD_REQUEST")
+    void configurarTopesGlobales_montoIndividualNegativo_lanzaNegocioException() {
+        ConfigurarTopesRequest request = ConfigurarTopesRequest.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("-1000.00"))
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("10000000.00"))
+                .build();
 
-                        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(r
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualT
-                                                            assertThat(ne.getStatus()).isEqualTo(Http
-                                   
-         
+        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(request))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo("INVALID_LIMITS");
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+    }
 
-            @
-            @DisplayName("HU18 Validación: Límite acumulado igual a cero lanza BAD_REQUE
-            void configurarTopesGlobales_montoAcumuladoCero_lanzaNegocioException
-                        ConfigurarTopesRequest request = ConfigurarTopesRequest.b
-                                                .montoMaximoPorTransferencia(new BigDecima
-                                                .montoMaximoAcumuladoPeriodo(
-                                         
+    @Test
+    @DisplayName("HU18 Validación: Límite acumulado igual a cero lanza BAD_REQUEST")
+    void configurarTopesGlobales_montoAcumuladoCero_lanzaNegocioException() {
+        ConfigurarTopesRequest request = ConfigurarTopesRequest.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("5000000.00"))
+                .montoMaximoAcumuladoPeriodo(BigDecimal.ZERO)
+                .build();
 
-                        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(r
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualT
-                                                            assertThat(ne.getStatus()).isEqualTo(Http
-                                   
-         
+        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(request))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo("INVALID_LIMITS");
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+    }
 
-            @
-            @DisplayName("HU18 Validación: Límite acumulado negativo lanza BAD_REQUE
-            void configurarTopesGlobales_montoAcumuladoNegativo_lanzaNegocioException
-                        ConfigurarTopesRequest request = ConfigurarTopesRequest.b
-                                                .montoMaximoPorTransferencia(new BigDecima
-                                                .montoMaximoAcumuladoPeriodo(new BigDec
-                                         
+    @Test
+    @DisplayName("HU18 Validación: Límite acumulado negativo lanza BAD_REQUEST")
+    void configurarTopesGlobales_montoAcumuladoNegativo_lanzaNegocioException() {
+        ConfigurarTopesRequest request = ConfigurarTopesRequest.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("5000000.00"))
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("-500.00"))
+                .build();
 
-                        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(r
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualT
-                                                            assertThat(ne.getStatus()).isEqualTo(Http
-                                   
-         
+        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(request))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo("INVALID_LIMITS");
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+    }
 
-            @
-            @DisplayName("HU18 Validación: Límite acumulado inferior al individual lanza BAD_REQUE
-            void configurarTopesGlobales_acumuladoMenorAIndividual_lanzaNegocioException
-                        ConfigurarTopesRequest request = ConfigurarTopesRequest.b
-                                                .montoMaximoPorTransferencia(new BigDecimal
-                                                .montoMaximoAcumuladoPeriodo(new BigDecima
-                                         
+    @Test
+    @DisplayName("HU18 Validación: Límite acumulado inferior al individual lanza BAD_REQUEST")
+    void configurarTopesGlobales_acumuladoMenorAIndividual_lanzaNegocioException() {
+        ConfigurarTopesRequest request = ConfigurarTopesRequest.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("10000000.00"))
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("5000000.00"))
+                .build();
 
-                        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(r
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualT
-                                                            assertThat(ne.getStatus()).isEqualTo(Http
-                                   
-         
+        assertThatThrownBy(() -> topeTransferenciaService.configurarTopesGlobales(request))
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo("INVALID_LIMITS");
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+    }
 
-            @
-            @DisplayName("HU18: Consultar topes globales cuando están configurados devuelve 200 con la configuraci
-            void consultarTopesGlobales_existente_retornaConfiguracion
-                        TopeTransferencia global = TopeTransferencia.b
-                                       
-                                                
-                                                .montoMaximoIndividual(new BigDecima
-                                                .montoMaximoAcumulado(new BigDecimal
-                                                .p
-                                                .fechaActualizacion(Offse
-                                         
+    @Test
+    @DisplayName("HU18: Consultar topes globales cuando están configurados devuelve 200 con la configuración")
+    void consultarTopesGlobales_existente_retornaConfiguracion() {
+        TopeTransferencia global = TopeTransferencia.builder()
+                .id(1L)
+                .clienteId(null)
+                .montoMaximoIndividual(new BigDecimal("5000000.00"))
+                .montoMaximoAcumulado(new BigDecimal("15000000.00"))
+                .periodo("DIARIO")
+                .fechaActualizacion(OffsetDateTime.now())
+                .build();
 
-                        given(topeTransferenciaRepository.findByClienteIdI
-                                                .willReturn(Optio
+        given(topeTransferenciaRepository.findByClienteIdIsNull())
+                .willReturn(Optional.of(global));
 
-                        TopeTransferenciaResponse response = topeTransferenciaService.consultarTopesGlo
+        TopeTransferenciaResponse response = topeTransferenciaService.consultarTopesGlobales();
 
-                        assertThat(response).isNo
-                        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("50000
-                        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("150000
-                        assertThat(response.getPeriodo()).isEqualTo("D
-                        assertThat(response.isEsPersonalizado()).is
-         
+        assertThat(response).isNotNull();
+        assertThat(response.getMontoMaximoPorTransferencia()).isEqualByComparingTo("5000000.00");
+        assertThat(response.getMontoMaximoAcumuladoPeriodo()).isEqualByComparingTo("15000000.00");
+        assertThat(response.getPeriodo()).isEqualTo("DIARIO");
+        assertThat(response.isEsPersonalizado()).isFalse();
+    }
 
-            @
-            @DisplayName("HU18: Consultar topes globales cuando no existen lanza SERVICE_UNAVAILAB
-            void consultarTopesGlobales_inexistente_lanzaServiceUnavailable
-                        given(topeTransferenciaRepository.findByClienteIdI
-                                                .willReturn(Op
+    @Test
+    @DisplayName("HU18: Consultar topes globales cuando no existen lanza SERVICE_UNAVAILABLE")
+    void consultarTopesGlobales_inexistente_lanzaServiceUnavailable() {
+        given(topeTransferenciaRepository.findByClienteIdIsNull())
+                .willReturn(Optional.empty());
 
-                        assertThatThrownBy(() -> topeTransferenciaService.consultarTopesGlo
-                                                .isInstanceOf(Negocio
-                                                .s
-                                                            NegocioException ne = (N
-                                                            assertThat(ne.getErrorCode()).isEqualTo("TOPE
-                                                            assertThat(ne.getStatus()).isEqualTo(HttpStatus.S
-                                   
-            }
+        assertThatThrownBy(() -> topeTransferenciaService.consultarTopesGlobales())
+                .isInstanceOf(NegocioException.class)
+                .satisfies(ex -> {
+                    NegocioException ne = (NegocioException) ex;
+                    assertThat(ne.getErrorCode()).isEqualTo("TOPES_NO_CONFIGURADOS");
+                    assertThat(ne.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                });
+    }
 }
