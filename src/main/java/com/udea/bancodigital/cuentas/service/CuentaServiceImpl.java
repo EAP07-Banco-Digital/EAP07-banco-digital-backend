@@ -304,7 +304,7 @@ public class CuentaServiceImpl implements CuentaService {
 
         // Dias de Colombia, no UTC (ver DiaBancario).
         OffsetDateTime desdeOffset = (desde != null) ? DiaBancario.inicio(desde) : null;
-        OffsetDateTime hastaOffset = (hasta != null) ? DiaBancario.ultimoInstante(hasta) : null;
+        OffsetDateTime hastaOffset = (hasta != null) ? DiaBancario.finExclusivo(hasta) : null;
 
         int pageIndex = Math.max(0, page - 1);
         int pageSize = size > 0 ? size : 10;

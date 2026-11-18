@@ -183,7 +183,53 @@ class CuentaServiceHistorialTest {
         // Un movimiento de las 8 p. m. en Bogota (01:00 UTC del 13) entra en el dia 12.
         verify(transaccionApi).consultarHistorial(eq(10L),
                 eq(OffsetDateTime.parse("2026-11-12T00:00:00-05:00")),
-                eq(OffsetDateTime.parse("2026-11-12T23:59:59.999999-05:00")),
+                eq(OffsetDateTime.parse("2026-11-13T00:00:00-05:00")),
+                isNull(), any(Pageable.class));
+    }
+
+    @Test
+    void consultarHistorial_fechasConsecutivas_filtraIntervaloCompleto() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+        LocalDate desde = LocalDate.of(2026, 10, 22);
+        LocalDate hasta = LocalDate.of(2026, 10, 23);
+
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, desde, hasta, null, 1, 10);
+
+        verify(transaccionApi).consultarHistorial(eq(10L),
+                eq(OffsetDateTime.parse("2026-10-22T00:00:00-05:00")),
+                eq(OffsetDateTime.parse("2026-10-24T00:00:00-05:00")),
+                isNull(), any(Pageable.class));
+    }
+
+    @Test
+    void consultarHistorial_soloDesde_hastaEsNull() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+        LocalDate desde = LocalDate.of(2026, 10, 22);
+
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, desde, null, null, 1, 10);
+
+        verify(transaccionApi).consultarHistorial(eq(10L),
+                eq(OffsetDateTime.parse("2026-10-22T00:00:00-05:00")),
+                isNull(),
+                isNull(), any(Pageable.class));
+    }
+
+    @Test
+    void consultarHistorial_soloHasta_desdeEsNull() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+        LocalDate hasta = LocalDate.of(2026, 10, 22);
+
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, null, hasta, null, 1, 10);
+
+        verify(transaccionApi).consultarHistorial(eq(10L),
+                isNull(),
+                eq(OffsetDateTime.parse("2026-10-23T00:00:00-05:00")),
                 isNull(), any(Pageable.class));
     }
 }
