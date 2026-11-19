@@ -126,7 +126,10 @@ class CuentaServiceOperacionesTest {
         assertEquals("INSUFFICIENT_FUNDS", ex.getErrorCode());
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
         assertEquals(new BigDecimal("100000.00"), cuentaActiva.getSaldoDisponible());
+        verify(cuentaRepository).findByNumeroCuentaForUpdate(NUMERO_CUENTA);
+        verify(cuentaRepository, never()).findByNumeroCuenta(anyString());
         verify(cuentaRepository, never()).save(any());
+        verifyNoInteractions(transaccionApi);
         verify(transaccionApi, never()).registrarTransaccion(any(), any(), any(), any(), any());
     }
 
@@ -161,7 +164,10 @@ class CuentaServiceOperacionesTest {
         assertEquals("BALANCE_LIMIT_EXCEEDED", ex.getErrorCode());
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
         assertEquals(saldoMaximo, cuentaActiva.getSaldoDisponible());
+        verify(cuentaRepository).findByNumeroCuentaForUpdate(NUMERO_CUENTA);
+        verify(cuentaRepository, never()).findByNumeroCuenta(anyString());
         verify(cuentaRepository, never()).save(any());
+        verifyNoInteractions(transaccionApi);
         verify(transaccionApi, never()).registrarTransaccion(any(), any(), any(), any(), any());
     }
 
