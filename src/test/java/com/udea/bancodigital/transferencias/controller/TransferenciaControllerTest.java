@@ -5,8 +5,10 @@ import com.udea.bancodigital.shared.config.CustomAccessDeniedHandler;
 import com.udea.bancodigital.shared.config.CustomAuthEntryPoint;
 import com.udea.bancodigital.shared.exception.NegocioException;
 import com.udea.bancodigital.shared.jwt.JwtAuthenticationFilter;
+import com.udea.bancodigital.transferencias.dto.TopeTransferenciaResponse;
 import com.udea.bancodigital.transferencias.dto.TransferenciaRequest;
 import com.udea.bancodigital.transferencias.dto.TransferenciaResponse;
+import com.udea.bancodigital.transferencias.service.TopeTransferenciaService;
 import com.udea.bancodigital.transferencias.service.TransferenciaService;
 import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,6 +50,9 @@ class TransferenciaControllerTest {
 
     @MockitoBean
     private TransferenciaService transferenciaService;
+
+    @MockitoBean
+    private TopeTransferenciaService topeTransferenciaService;
 
     @MockitoBean
     private UsuarioApi usuarioApi;
@@ -247,5 +253,63 @@ class TransferenciaControllerTest {
         transferir(solicitud("1000000001", "2000000001", "100000.00"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("ACCOUNT_INACTIVE"));
+    }
+
+    @Test
+    void consultarTopesConTopesPersonalizadosDevuelve200() throws Exception {
+        elTokenResuelveAlCliente();
+        TopeTransferenciaResponse response = TopeTransferenciaResponse.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("3000000.00"))
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("8000000.00"))
+                .periodo("DIARIO")
+                .esPersonalizado(true)
+                .build();
+
+        given(topeTransferenciaService.consultarTopesParaCliente(CLIENTE_ID)).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/transferencias/topes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.montoMaximoPorTransferencia").value(3000000.00))
+                .andExpect(jsonPath("$.montoMaximoAcumuladoPeriodo").value(8000000.00))
+                .andExpect(jsonPath("$.periodo").value("DIARIO"))
+                .andExpect(jsonPath("$.esPersonalizado").value(true));
+
+        verify(usuarioApi).obtenerIdClientePorEmail(CORREO);
+        verify(topeTransferenciaService).consultarTopesParaCliente(CLIENTE_ID);
+    }
+
+    @Test
+    void consultarTopesSinTopesPersonalizadosDevuelvePredeterminadosDelBanco() throws Exception {
+        elTokenResuelveAlCliente();
+        TopeTransferenciaResponse response = TopeTransferenciaResponse.builder()
+                .montoMaximoPorTransferencia(new BigDecimal("5000000.00"))
+                .montoMaximoAcumuladoPeriodo(new BigDecimal("15000000.00"))
+                .periodo("DIARIO")
+                .esPersonalizado(false)
+                .build();
+
+        given(topeTransferenciaService.consultarTopesParaCliente(CLIENTE_ID)).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/transferencias/topes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.montoMaximoPorTransferencia").value(5000000.00))
+                .andExpect(jsonPath("$.montoMaximoAcumuladoPeriodo").value(15000000.00))
+                .andExpect(jsonPath("$.periodo").value("DIARIO"))
+                .andExpect(jsonPath("$.esPersonalizado").value(false));
+
+        verify(topeTransferenciaService).consultarTopesParaCliente(CLIENTE_ID);
+    }
+
+    @Test
+    void consultarTopesSinTopesConfiguradosDevuelve503() throws Exception {
+        elTokenResuelveAlCliente();
+        given(topeTransferenciaService.consultarTopesParaCliente(CLIENTE_ID))
+                .willThrow(new NegocioException("TOPES_NO_CONFIGURADOS",
+                        "Los topes de transferencia aún no han sido configurados", HttpStatus.SERVICE_UNAVAILABLE));
+
+        mockMvc.perform(get("/api/v1/transferencias/topes"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.errorCode").value("TOPES_NO_CONFIGURADOS"))
+                .andExpect(jsonPath("$.message").value("Los topes de transferencia aún no han sido configurados"));
     }
 }

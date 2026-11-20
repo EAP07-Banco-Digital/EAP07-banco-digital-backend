@@ -24,10 +24,11 @@ class CustomAuthEntryPointTest {
 
         assertThat(respuesta.getStatus()).isEqualTo(401);
         assertThat(respuesta.getContentType()).isEqualTo("application/json");
+        assertThat(respuesta.getCharacterEncoding()).isEqualToIgnoringCase("utf-8");
 
         JsonNode cuerpo = objectMapper.readTree(respuesta.getContentAsString());
         assertThat(cuerpo.get("errorCode").asText()).isEqualTo("UNAUTHORIZED");
-        assertThat(cuerpo.get("message").asText()).isEqualTo("Debes iniciar sesion para acceder a este recurso");
+        assertThat(cuerpo.get("message").asText()).isEqualTo("Debes iniciar sesión para acceder a este recurso");
         assertThat(cuerpo.get("details").isNull()).isTrue();
     }
 

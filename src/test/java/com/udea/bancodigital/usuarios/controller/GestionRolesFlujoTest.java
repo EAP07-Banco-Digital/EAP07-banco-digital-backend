@@ -183,7 +183,7 @@ class GestionRolesFlujoTest {
         cambiarRol(bearer(cliente), ADMIN_ID, "{\"rol\":\"CLIENTE\"}")
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.message").value("No tienes permisos para realizar esta operacion"))
+                .andExpect(jsonPath("$.message").value("No tienes permisos para realizar esta operación"))
                 .andExpect(jsonPath("$.details").isEmpty())
                 .andExpect(jsonPath("$.traceId").isNotEmpty());
 
