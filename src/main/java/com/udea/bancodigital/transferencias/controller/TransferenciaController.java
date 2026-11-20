@@ -1,7 +1,9 @@
 package com.udea.bancodigital.transferencias.controller;
 
+import com.udea.bancodigital.transferencias.dto.TopeTransferenciaResponse;
 import com.udea.bancodigital.transferencias.dto.TransferenciaRequest;
 import com.udea.bancodigital.transferencias.dto.TransferenciaResponse;
+import com.udea.bancodigital.transferencias.service.TopeTransferenciaService;
 import com.udea.bancodigital.transferencias.service.TransferenciaService;
 import com.udea.bancodigital.usuarios.api.UsuarioApi;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TransferenciaController {
 
     private final TransferenciaService transferenciaService;
+    private final TopeTransferenciaService topeTransferenciaService;
     // Única dependencia externa: solo se acopla a la interfaz pública (API) del módulo usuarios
     private final UsuarioApi usuarioApi;
 
@@ -59,5 +63,28 @@ public class TransferenciaController {
 
         TransferenciaResponse response = transferenciaService.realizarTransferencia(clienteId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "Consultar topes de transferencia (HU17)",
+            description = """
+                    Consulta los topes de transferencia aplicables al cliente autenticado.
+                    Si el cliente tiene límites personalizados, se retornan sus topes específicos.
+                    En caso contrario, se retornan los topes predeterminados definidos por el banco.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Topes consultados exitosamente.",
+                    content = @Content(schema = @Schema(implementation = TopeTransferenciaResponse.class))),
+            @ApiResponse(responseCode = "401", description = "No autenticado. Se requiere token JWT.", content = @Content),
+            @ApiResponse(responseCode = "503", description = "Los topes de transferencia aún no han sido configurados.", content = @Content)
+    })
+    @GetMapping("/topes")
+    public ResponseEntity<TopeTransferenciaResponse> consultarTopes() {
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Long clienteId = usuarioApi.obtenerIdClientePorEmail(email);
+
+        TopeTransferenciaResponse response = topeTransferenciaService.consultarTopesParaCliente(clienteId);
+        return ResponseEntity.ok(response);
     }
 }
