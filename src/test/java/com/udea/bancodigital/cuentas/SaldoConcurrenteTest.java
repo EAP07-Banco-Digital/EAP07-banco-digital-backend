@@ -180,7 +180,7 @@ class SaldoConcurrenteTest extends PostgresContenedor {
                 INNER JOIN tipo_transaccion AS tt
                     ON tt.id = t.tipo_transaccion_id
                 INNER JOIN cuentas AS c
-                    ON c.id = t.cuenta_origen_id
+                    ON c.id = COALESCE(t.cuenta_origen_id, t.cuenta_destino_id)
                 WHERE c.numero_cuenta = ?
                   AND tt.nombre = ?
                 """, Integer.class, numero, tipo);

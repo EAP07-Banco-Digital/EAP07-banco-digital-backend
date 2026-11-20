@@ -212,8 +212,8 @@ public class CuentaServiceImpl implements CuentaService {
         cuentaRepository.save(cuenta);
 
         TransaccionApi.TransaccionInfo transaccionInfo = transaccionApi.registrarTransaccion(
-                cuenta.getId(),
                 null,
+                cuenta.getId(),
                 "CREDITO",
                 request.getMonto(),
                 "Depósito a cuenta"
