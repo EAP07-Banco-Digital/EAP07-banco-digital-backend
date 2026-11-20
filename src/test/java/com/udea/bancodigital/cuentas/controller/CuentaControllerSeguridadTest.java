@@ -55,7 +55,7 @@ class CuentaControllerSeguridadTest {
                         .content("{\"tipoCuenta\":\"AHORROS\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.message").value("Debes iniciar sesion para acceder a este recurso"))
+                .andExpect(jsonPath("$.message").value("Debes iniciar sesión para acceder a este recurso"))
                 .andExpect(jsonPath("$.details").isEmpty())
                 .andExpect(jsonPath("$.traceId").isNotEmpty());
 

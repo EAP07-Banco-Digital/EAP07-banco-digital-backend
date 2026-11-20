@@ -36,7 +36,7 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
             body.put("message", "La sesion fue cerrada. Inicia sesion de nuevo");
         } else {
             body.put("errorCode", CodigosError.UNAUTHORIZED);
-            body.put("message", "Debes iniciar sesion para acceder a este recurso");
+            body.put("message", "Debes iniciar sesión para acceder a este recurso");
         }
         body.put("details", null);
         body.put("traceId", request.getAttribute(TraceIdFilter.TRACE_ID_ATTR));

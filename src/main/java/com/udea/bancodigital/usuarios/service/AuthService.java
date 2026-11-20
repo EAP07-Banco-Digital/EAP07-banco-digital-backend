@@ -46,7 +46,7 @@ public class AuthService {
         // Busca el usuario utilizando el email recibido en la solicitud, normalizado
         // igual que al registrarlo: "Juan@Banco.com" y "juan@banco.com" son el mismo.
         Usuario usuario = usuarioRepository.findByEmailForUpdate(Correos.normalizar(request.getEmail()))
-                .orElseThrow(() -> new BadCredentialsException("Credenciales invalidas"));
+                .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
 
         OffsetDateTime ahora = OffsetDateTime.now();
         if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(ahora)) {
@@ -57,12 +57,12 @@ public class AuthService {
         // como hash en la base de datos.
         if (!passwordEncoder.matches(request.getPassword(), usuario.getPasswordHash())) {
             registrarIntentoFallido(usuario, ahora);
-            throw new BadCredentialsException("Credenciales invalidas");
+            throw new BadCredentialsException("Credenciales inválidas");
         }
 
         // Verifica que el usuario tenga un estado que permita iniciar sesion.
         if (!usuario.estaActivo()) {
-            throw new BadCredentialsException("El usuario no esta activo");
+            throw new BadCredentialsException("El usuario no está activo");
         }
 
         // Obtiene el nombre del rol asociado al usuario.

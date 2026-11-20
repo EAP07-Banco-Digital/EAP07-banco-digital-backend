@@ -24,10 +24,11 @@ class CustomAccessDeniedHandlerTest {
 
         assertThat(respuesta.getStatus()).isEqualTo(403);
         assertThat(respuesta.getContentType()).isEqualTo("application/json");
+        assertThat(respuesta.getCharacterEncoding()).isEqualToIgnoringCase("utf-8");
 
         JsonNode cuerpo = objectMapper.readTree(respuesta.getContentAsString());
         assertThat(cuerpo.get("errorCode").asText()).isEqualTo("FORBIDDEN");
-        assertThat(cuerpo.get("message").asText()).isEqualTo("No tienes permisos para realizar esta operacion");
+        assertThat(cuerpo.get("message").asText()).isEqualTo("No tienes permisos para realizar esta operación");
         assertThat(cuerpo.get("details").isNull()).isTrue();
         assertThat(cuerpo.get("traceId").asText()).isEqualTo("0f1c3a6e-8b2d-4f7a-9c1e-5d3b7a2f4e80");
     }
