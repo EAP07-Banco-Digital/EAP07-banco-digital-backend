@@ -25,6 +25,7 @@ import java.time.OffsetDateTime;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -141,6 +142,43 @@ class CuentaControllerOperacionesTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_AMOUNT"));
+    }
+
+    @Test
+    @WithMockUser(username = "cliente@banco.com")
+    void registrarCredito_montoConMasDeDosDecimales_retorna400SinLlegarAlServicio() throws Exception {
+        mockMvc.perform(post("/api/v1/cuentas/{numeroCuenta}/depositos", NUMERO_CUENTA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"monto\":0.004}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("El monto admite máximo 13 dígitos enteros y 2 decimales"));
+
+        verifyNoInteractions(cuentaService);
+    }
+
+    @Test
+    @WithMockUser(username = "cliente@banco.com")
+    void registrarDebito_montoConMasDeDosDecimales_retorna400SinLlegarAlServicio() throws Exception {
+        mockMvc.perform(post("/api/v1/cuentas/{numeroCuenta}/retiros", NUMERO_CUENTA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"monto\":10.505}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(cuentaService);
+    }
+
+    @Test
+    @WithMockUser(username = "cliente@banco.com")
+    void registrarCredito_montoConMasDeTreceDigitosEnteros_retorna400SinLlegarAlServicio() throws Exception {
+        mockMvc.perform(post("/api/v1/cuentas/{numeroCuenta}/depositos", NUMERO_CUENTA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"monto\":99999999999999}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(cuentaService);
     }
 
     @Test
