@@ -86,7 +86,7 @@ class CuentaServiceHistorialTest {
         );
         // Transacción 3: Entrada directa (crédito)
         TransaccionApi.TransaccionDetalle t3 = new TransaccionApi.TransaccionDetalle(
-                3L, 10L, null, "CREDITO", new BigDecimal("10000.00"), OffsetDateTime.now(), "Depósito"
+                3L, null, 10L, "CREDITO", new BigDecimal("10000.00"), OffsetDateTime.now(), "Depósito"
         );
         // Transacción 4: Salida directa (débito)
         TransaccionApi.TransaccionDetalle t4 = new TransaccionApi.TransaccionDetalle(
@@ -113,6 +113,8 @@ class CuentaServiceHistorialTest {
         assertEquals("9876543210", resultado.getContent().get(1).getNumeroCuentaOrigen());
 
         assertEquals("ENTRADA", resultado.getContent().get(2).getTipoMovimiento());
+        assertNull(resultado.getContent().get(2).getNumeroCuentaOrigen());
+        assertEquals(NUMERO_CUENTA, resultado.getContent().get(2).getNumeroCuentaDestino());
         assertEquals("SALIDA", resultado.getContent().get(3).getTipoMovimiento());
 
         // Verificación de eliminación de N+1: una sola consulta findAllById, cero findById
