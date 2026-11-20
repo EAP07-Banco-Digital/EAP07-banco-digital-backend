@@ -11,6 +11,7 @@ import com.udea.bancodigital.transferencias.api.TransaccionApi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,6 +73,9 @@ class CuentaServiceHistorialTest {
     void consultarHistorial_exitoso_mapeaEntradaYSalidaCorrectamente() {
         given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
 
+        Cuenta cuentaContraparte = Cuenta.builder().id(20L).numeroCuenta("9876543210").build();
+        given(cuentaRepository.findAllById(any())).willReturn(List.of(cuentaContraparte));
+
         // Transacción 1: Salida (transferencia donde cuentaActiva es origen)
         TransaccionApi.TransaccionDetalle t1 = new TransaccionApi.TransaccionDetalle(
                 1L, 10L, 20L, "TRANSFERENCIA", new BigDecimal("30000.00"), OffsetDateTime.now(), "Pago"
@@ -100,9 +105,19 @@ class CuentaServiceHistorialTest {
         assertEquals(4, resultado.getContent().size());
 
         assertEquals("SALIDA", resultado.getContent().get(0).getTipoMovimiento());
+        assertEquals("9876543210", resultado.getContent().get(0).getNumeroCuentaDestino());
+        assertEquals(NUMERO_CUENTA, resultado.getContent().get(0).getNumeroCuentaOrigen());
+
         assertEquals("ENTRADA", resultado.getContent().get(1).getTipoMovimiento());
+        assertEquals(NUMERO_CUENTA, resultado.getContent().get(1).getNumeroCuentaDestino());
+        assertEquals("9876543210", resultado.getContent().get(1).getNumeroCuentaOrigen());
+
         assertEquals("ENTRADA", resultado.getContent().get(2).getTipoMovimiento());
         assertEquals("SALIDA", resultado.getContent().get(3).getTipoMovimiento());
+
+        // Verificación de eliminación de N+1: una sola consulta findAllById, cero findById
+        verify(cuentaRepository, times(1)).findAllById(any());
+        verify(cuentaRepository, never()).findById(any());
     }
 
     @Test
@@ -170,6 +185,75 @@ class CuentaServiceHistorialTest {
         assertNotNull(resultado);
         assertTrue(resultado.isEmpty());
     }
+
+    // ── Tests de paginación (DEF-HU15-02) ─────────────────────────────────────
+
+    @Test
+    void consultarHistorial_sizePorDefecto_usaPageSize10() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, null, null, null, 1, 0);
+
+        verify(transaccionApi).consultarHistorial(any(), any(), any(), any(), captor.capture());
+        assertEquals(10, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void consultarHistorial_sizeNegativo_usaPageSize10() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, null, null, null, 1, -1);
+
+        verify(transaccionApi).consultarHistorial(any(), any(), any(), any(), captor.capture());
+        assertEquals(10, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void consultarHistorial_size20_usaPageSize20() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, null, null, null, 1, 20);
+
+        verify(transaccionApi).consultarHistorial(any(), any(), any(), any(), captor.capture());
+        assertEquals(20, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void consultarHistorial_size100_usaPageSize100() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, null, null, null, 1, 100);
+
+        verify(transaccionApi).consultarHistorial(any(), any(), any(), any(), captor.capture());
+        assertEquals(100, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void consultarHistorial_sizeExcesivoSeLimitaA100() {
+        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.consultarHistorial(eq(10L), any(), any(), any(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(Collections.emptyList()));
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        cuentaService.consultarHistorial(CLIENTE_ID, NUMERO_CUENTA, null, null, null, 1, 1_000_000);
+
+        verify(transaccionApi).consultarHistorial(any(), any(), any(), any(), captor.capture());
+        assertEquals(100, captor.getValue().getPageSize());
+    }
+
+    // ── Fin tests paginación ───────────────────────────────────────────────────
 
     @Test
     void consultarHistorial_conFechas_filtraPorDiasDeColombia() {

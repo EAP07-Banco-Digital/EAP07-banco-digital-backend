@@ -307,7 +307,7 @@ public class CuentaServiceImpl implements CuentaService {
         OffsetDateTime hastaOffset = (hasta != null) ? DiaBancario.finExclusivo(hasta) : null;
 
         int pageIndex = Math.max(0, page - 1);
-        int pageSize = size > 0 ? size : 10;
+        int pageSize = size > 0 ? Math.min(size, 100) : 10;
 
         Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.DESC, "fechaHora"));
 
@@ -319,7 +319,8 @@ public class CuentaServiceImpl implements CuentaService {
                 pageable
         );
 
-        return transaccionesPage.map(t -> mapearTransaccion(cuenta, t));
+        Map<Long, String> numerosCuenta = numerosDeCuentasRelacionadas(cuenta, transaccionesPage.getContent());
+        return transaccionesPage.map(t -> mapearTransaccion(cuenta, t, numerosCuenta));
     }
 
 
@@ -440,30 +441,9 @@ public class CuentaServiceImpl implements CuentaService {
         return valor.setScale(2, RoundingMode.HALF_EVEN);
     }
 
-    private HistorialTransaccionResponse mapearTransaccion(Cuenta cuenta, TransaccionApi.TransaccionDetalle t) {
+    private HistorialTransaccionResponse mapearTransaccion(
+            Cuenta cuenta, TransaccionApi.TransaccionDetalle t, Map<Long, String> numerosCuenta) {
         String tipoMovimiento = t.esCreditoPara(cuenta.getId()) ? "ENTRADA" : "SALIDA";
-
-        String numeroOrigen = null;
-        if (t.cuentaOrigenId() != null) {
-            if (t.cuentaOrigenId().equals(cuenta.getId())) {
-                numeroOrigen = cuenta.getNumeroCuenta();
-            } else {
-                numeroOrigen = cuentaRepository.findById(t.cuentaOrigenId())
-                        .map(Cuenta::getNumeroCuenta)
-                        .orElse(null);
-            }
-        }
-
-        String numeroDestino = null;
-        if (t.cuentaDestinoId() != null) {
-            if (t.cuentaDestinoId().equals(cuenta.getId())) {
-                numeroDestino = cuenta.getNumeroCuenta();
-            } else {
-                numeroDestino = cuentaRepository.findById(t.cuentaDestinoId())
-                        .map(Cuenta::getNumeroCuenta)
-                        .orElse(null);
-            }
-        }
 
         return HistorialTransaccionResponse.builder()
                 .transaccionId(t.id())
@@ -471,8 +451,8 @@ public class CuentaServiceImpl implements CuentaService {
                 .tipoTransaccion(t.tipoTransaccion())
                 .monto(t.monto())
                 .descripcion(t.descripcion())
-                .numeroCuentaOrigen(numeroOrigen)
-                .numeroCuentaDestino(numeroDestino)
+                .numeroCuentaOrigen(numerosCuenta.get(t.cuentaOrigenId()))
+                .numeroCuentaDestino(numerosCuenta.get(t.cuentaDestinoId()))
                 .tipoMovimiento(tipoMovimiento)
                 .build();
     }
