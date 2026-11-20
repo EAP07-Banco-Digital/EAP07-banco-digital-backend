@@ -90,7 +90,7 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/usuarios/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.message").value("Debes iniciar sesion para acceder a este recurso"))
+                .andExpect(jsonPath("$.message").value("Debes iniciar sesión para acceder a este recurso"))
                 .andExpect(content().string(not(containsString("traceId\":null"))));
     }
 
@@ -153,7 +153,7 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.message").value("No tienes permisos para realizar esta operacion"))
+                .andExpect(jsonPath("$.message").value("No tienes permisos para realizar esta operación"))
                 .andExpect(jsonPath("$.details").isEmpty())
                 .andExpect(jsonPath("$.traceId").isNotEmpty());
     }

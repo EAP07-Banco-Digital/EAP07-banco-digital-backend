@@ -195,11 +195,11 @@ class GlobalExceptionHandlerTest {
     @Test
     void credencialesInvalidasResponden401ConCodigoPropio() {
         ResponseEntity<Map<String, Object>> respuesta =
-                handler.manejarCredencialesInvalidas(new BadCredentialsException("Credenciales invalidas"), peticion);
+                handler.manejarCredencialesInvalidas(new BadCredentialsException("Credenciales inválidas"), peticion);
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(cuerpo(respuesta).get("errorCode")).isEqualTo("INVALID_CREDENTIALS");
-        assertThat(cuerpo(respuesta).get("message")).isEqualTo("Credenciales invalidas");
+        assertThat(cuerpo(respuesta).get("message")).isEqualTo("Credenciales inválidas");
     }
 
     @Test

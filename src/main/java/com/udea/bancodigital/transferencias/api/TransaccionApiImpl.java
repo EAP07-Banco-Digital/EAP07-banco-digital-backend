@@ -100,7 +100,7 @@ public class TransaccionApiImpl implements TransaccionApi {
             }
 
             if (hasta != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("fechaHora"), hasta));
+                predicates.add(cb.lessThan(root.get("fechaHora"), hasta));
             }
 
             if (finalTipoId != null) {
