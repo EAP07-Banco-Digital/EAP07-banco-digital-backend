@@ -74,7 +74,7 @@ class CuentaServiceOperacionesTest {
         OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("50000.00"));
         TransaccionApi.TransaccionInfo infoMock = new TransaccionApi.TransaccionInfo(201L, OffsetDateTime.now());
 
-        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
         given(transaccionApi.registrarTransaccion(isNull(), eq(10L), eq("CREDITO"), eq(new BigDecimal("50000.00")), anyString()))
                 .willReturn(infoMock);
 
@@ -97,7 +97,7 @@ class CuentaServiceOperacionesTest {
         OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("40000.00"));
         TransaccionApi.TransaccionInfo infoMock = new TransaccionApi.TransaccionInfo(202L, OffsetDateTime.now());
 
-        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
         given(transaccionApi.registrarTransaccion(eq(10L), isNull(), eq("DEBITO"), eq(new BigDecimal("40000.00")), anyString()))
                 .willReturn(infoMock);
 
@@ -118,7 +118,7 @@ class CuentaServiceOperacionesTest {
     @Test
     void registrarDebito_sinSaldoSuficiente_lanzaInsufficientFunds() {
         OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("150000.00"));
-        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
 
         NegocioException ex = assertThrows(NegocioException.class,
                 () -> cuentaService.registrarDebito(CLIENTE_ID, NUMERO_CUENTA, request));
@@ -126,7 +126,10 @@ class CuentaServiceOperacionesTest {
         assertEquals("INSUFFICIENT_FUNDS", ex.getErrorCode());
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
         assertEquals(new BigDecimal("100000.00"), cuentaActiva.getSaldoDisponible());
+        verify(cuentaRepository).findByNumeroCuentaForUpdate(NUMERO_CUENTA);
+        verify(cuentaRepository, never()).findByNumeroCuenta(anyString());
         verify(cuentaRepository, never()).save(any());
+        verifyNoInteractions(transaccionApi);
         verify(transaccionApi, never()).registrarTransaccion(any(), any(), any(), any(), any());
     }
 
@@ -149,10 +152,47 @@ class CuentaServiceOperacionesTest {
     }
 
     @Test
+    void registrarCredito_saldoSuperaMaximo_lanzaBalanceLimitExceeded() {
+        BigDecimal saldoMaximo = new BigDecimal("9999999999999.99");
+        cuentaActiva.setSaldoDisponible(saldoMaximo);
+        OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("0.01"));
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+
+        NegocioException ex = assertThrows(NegocioException.class,
+                () -> cuentaService.registrarCredito(CLIENTE_ID, NUMERO_CUENTA, request));
+
+        assertEquals("BALANCE_LIMIT_EXCEEDED", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals(saldoMaximo, cuentaActiva.getSaldoDisponible());
+        verify(cuentaRepository).findByNumeroCuentaForUpdate(NUMERO_CUENTA);
+        verify(cuentaRepository, never()).findByNumeroCuenta(anyString());
+        verify(cuentaRepository, never()).save(any());
+        verifyNoInteractions(transaccionApi);
+        verify(transaccionApi, never()).registrarTransaccion(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void registrarCredito_saldoAlcanzaMaximo_sePermite() {
+        BigDecimal saldoMaximo = new BigDecimal("9999999999999.99");
+        cuentaActiva.setSaldoDisponible(new BigDecimal("9999999999999.98"));
+        OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("0.01"));
+        TransaccionApi.TransaccionInfo infoMock = new TransaccionApi.TransaccionInfo(203L, OffsetDateTime.now());
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(transaccionApi.registrarTransaccion(isNull(), eq(10L), eq("CREDITO"), eq(new BigDecimal("0.01")), anyString()))
+                .willReturn(infoMock);
+
+        OperacionCuentaResponse response = cuentaService.registrarCredito(CLIENTE_ID, NUMERO_CUENTA, request);
+
+        assertEquals(saldoMaximo, response.getSaldoNuevo());
+        assertEquals(saldoMaximo, cuentaActiva.getSaldoDisponible());
+        verify(cuentaRepository).save(cuentaActiva);
+    }
+
+    @Test
     void registrarOperacion_cuentaNoPerteneceAlCliente_lanzaForbidden() {
         Long otroClienteId = 99L;
         OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("10000.00"));
-        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
 
         NegocioException ex = assertThrows(NegocioException.class,
                 () -> cuentaService.registrarCredito(otroClienteId, NUMERO_CUENTA, request));
@@ -166,7 +206,7 @@ class CuentaServiceOperacionesTest {
     void registrarOperacion_cuentaBloqueada_lanzaAccountNotActive() {
         cuentaActiva.setEstado(estadoBloqueada);
         OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("10000.00"));
-        given(cuentaRepository.findByNumeroCuenta(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
+        given(cuentaRepository.findByNumeroCuentaForUpdate(NUMERO_CUENTA)).willReturn(Optional.of(cuentaActiva));
 
         NegocioException exCredito = assertThrows(NegocioException.class,
                 () -> cuentaService.registrarCredito(CLIENTE_ID, NUMERO_CUENTA, request));
@@ -185,7 +225,7 @@ class CuentaServiceOperacionesTest {
     @Test
     void registrarOperacion_cuentaNoExiste_lanzaAccountNotFound() {
         OperacionCuentaRequest request = new OperacionCuentaRequest(new BigDecimal("10000.00"));
-        given(cuentaRepository.findByNumeroCuenta("0000000000")).willReturn(Optional.empty());
+        given(cuentaRepository.findByNumeroCuentaForUpdate("0000000000")).willReturn(Optional.empty());
 
         NegocioException ex = assertThrows(NegocioException.class,
                 () -> cuentaService.registrarCredito(CLIENTE_ID, "0000000000", request));
