@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="1085" viewBox="0 0 1300 1085" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"><defs>
+<marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto-start-reverse">
+<path d="M1,1 L11,6 L1,11" fill="none" stroke="#4A4A48" stroke-width="1.6"/></marker>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto-start-reverse">
+<path d="M1,1 L13,7 L1,13 Z" fill="#FFFFFF" stroke="#4A4A48" stroke-width="1.4"/></marker>
+<marker id="fillh" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+<path d="M1,1 L11,6 L1,11 Z" fill="#4A4A48"/></marker></defs><rect width="1300" height="1085" fill="#FFFFFF"/>
+<text x="30" y="38" font-size="20" font-weight="bold" text-anchor="start" fill="#1F1F1E">Diagrama de paquetes · Banco Digital (HU1, HU2, HU4, HU5, HU6, HU7)</text>
+<text x="30" y="62" font-size="13" font-weight="normal" text-anchor="start" fill="#5F5E5A">Monolito modular: cada módulo agrupa sus capas y solo expone hacia afuera su paquete api/</text>
+<path d="M20,108 v-22 h202 v22" fill="#FFFFFF" stroke="#8A8984" stroke-width="1.2"/>
+<rect x="20" y="108" width="1260" height="860" fill="#FFFFFF" stroke="#8A8984" stroke-width="1.2"/>
+<text x="30" y="102" font-size="14" font-weight="bold" text-anchor="start" fill="#1F1F1E">com.udea.bancodigital</text>
+<path d="M40,160 v-22 h89 v22" fill="#F4F3F0" stroke="#C9C7C0" stroke-width="1.2"/>
+<rect x="40" y="160" width="550" height="500" fill="#F4F3F0" stroke="#C9C7C0" stroke-width="1.2"/>
+<text x="50" y="154" font-size="14" font-weight="bold" text-anchor="start" fill="#1F1F1E">usuarios</text>
+<path d="M65,200 v-22 h94 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="65" y="200" width="220" height="80" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="75" y="194" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">controller</text>
+<text x="175.0" y="224" font-size="11" font-weight="normal" text-anchor="middle" fill="#2F6FD6" font-style="italic">«REST»</text>
+<text x="175.0" y="241" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">AuthController  /api/auth</text>
+<text x="175.0" y="257" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">UsuarioController  /api/usuarios</text>
+<path d="M65,315 v-22 h72 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="65" y="315" width="220" height="70" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="75" y="309" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">service</text>
+<text x="175.0" y="339" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">AuthService</text>
+<text x="175.0" y="355" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">UsuarioService</text>
+<path d="M65,420 v-22 h94 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="65" y="420" width="220" height="86" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="75" y="414" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">repository</text>
+<text x="175.0" y="444" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">UsuarioRepository</text>
+<text x="175.0" y="460" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">ClienteRepository</text>
+<text x="175.0" y="476" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">RolRepository</text>
+<path d="M65,541 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="65" y="541" width="220" height="70" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="75" y="535" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">entity</text>
+<text x="175.0" y="565" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">Usuario · Cliente · Rol</text>
+<text x="175.0" y="581" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">(JPA)</text>
+<path d="M320,200 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="320" y="200" width="225" height="80" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="330" y="194" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">dto</text>
+<text x="432.5" y="224" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">RegistroUsuarioRequestDTO</text>
+<text x="432.5" y="240" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">LoginRequest/ResponseDTO</text>
+<text x="432.5" y="256" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">PerfilUsuarioDTO …</text>
+<path d="M320,315 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="320" y="315" width="225" height="70" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="330" y="309" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">mapper</text>
+<text x="432.5" y="339" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">UsuarioMapper</text>
+<text x="432.5" y="355" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">ClienteMapper (MapStruct)</text>
+<path d="M320,541 v-22 h70 v22" fill="#DCE6F2" stroke="#2F6FD6" stroke-width="1.2"/>
+<rect x="320" y="541" width="225" height="70" fill="#DCE6F2" stroke="#2F6FD6" stroke-width="1.2"/>
+<text x="330" y="535" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">api</text>
+<text x="432.5" y="565" font-size="11" font-weight="normal" text-anchor="middle" fill="#2F6FD6" font-style="italic">«interface» API pública</text>
+<text x="432.5" y="582" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">UsuarioApi</text>
+<path d="M175,280 L175,315" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M175,385 L175,420" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M175,506 L175,541" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M285,240 L320,240" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M285,350 L320,350" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M285,370 L302,370 L302,576 L320,576" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<text x="306" y="470" font-size="11" font-weight="normal" text-anchor="start" fill="#5F5E5A">implementa</text>
+<path d="M710,160 v-22 h80 v22" fill="#F4F3F0" stroke="#C9C7C0" stroke-width="1.2"/>
+<rect x="710" y="160" width="550" height="500" fill="#F4F3F0" stroke="#C9C7C0" stroke-width="1.2"/>
+<text x="720" y="154" font-size="14" font-weight="bold" text-anchor="start" fill="#1F1F1E">cuentas</text>
+<path d="M735,200 v-22 h94 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="735" y="200" width="220" height="80" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="745" y="194" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">controller</text>
+<text x="845.0" y="224" font-size="11" font-weight="normal" text-anchor="middle" fill="#2F6FD6" font-style="italic">«REST»</text>
+<text x="845.0" y="241" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CuentaController</text>
+<text x="845.0" y="257" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">/api/v1/cuentas</text>
+<path d="M735,315 v-22 h72 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="735" y="315" width="220" height="70" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="745" y="309" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">service</text>
+<text x="845.0" y="339" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CuentaService «interface»</text>
+<text x="845.0" y="355" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CuentaServiceImpl</text>
+<path d="M735,420 v-22 h94 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="735" y="420" width="220" height="86" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="745" y="414" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">repository</text>
+<text x="845.0" y="444" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CuentaRepository</text>
+<text x="845.0" y="460" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">TipoCuentaRepository</text>
+<path d="M735,541 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="735" y="541" width="220" height="70" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="745" y="535" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">entity</text>
+<text x="845.0" y="565" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">Cuenta · TipoCuenta</text>
+<text x="845.0" y="581" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">(JPA)</text>
+<path d="M990,200 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="990" y="200" width="245" height="80" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="1000" y="194" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">dto</text>
+<text x="1112.5" y="224" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">AperturaCuentaRequest</text>
+<text x="1112.5" y="240" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CuentaResponse</text>
+<text x="1112.5" y="256" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CuentaResumenResponse …</text>
+<path d="M990,315 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="990" y="315" width="245" height="70" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="1000" y="309" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">config</text>
+<text x="1112.5" y="339" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">IndiceCuentaActivaUnica</text>
+<text x="1112.5" y="355" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">(una cuenta ACTIVA por tipo)</text>
+<path d="M990,541 v-22 h70 v22" fill="#DCE6F2" stroke="#2F6FD6" stroke-width="1.2"/>
+<rect x="990" y="541" width="245" height="70" fill="#DCE6F2" stroke="#2F6FD6" stroke-width="1.2"/>
+<text x="1000" y="535" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">api</text>
+<text x="1112.5" y="565" font-size="11" font-weight="normal" text-anchor="middle" fill="#2F6FD6" font-style="italic">«interface» API pública</text>
+<text x="1112.5" y="582" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CuentaApi · CuentaApiImpl</text>
+<path d="M845,280 L845,315" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M845,385 L845,420" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M845,506 L845,541" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M955,240 L990,240" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M990,576 L972,576 L972,463 L955,463" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<path d="M735,225 L625,225 L625,590 L565,590" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<text x="632" y="410" font-size="11" font-weight="normal" text-anchor="start" fill="#2F6FD6" font-style="italic">«use»</text>
+<text x="632" y="425" font-size="11" font-weight="normal" text-anchor="start" fill="#2F6FD6">UsuarioApi</text>
+<path d="M40,745 v-22 h72 v22" fill="#F7F5EF" stroke="#C9C7C0" stroke-width="1.2"/>
+<rect x="40" y="745" width="1220" height="200" fill="#F7F5EF" stroke="#C9C7C0" stroke-width="1.2"/>
+<text x="50" y="739" font-size="14" font-weight="bold" text-anchor="start" fill="#1F1F1E">shared</text>
+<path d="M65,785 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="65" y="785" width="220" height="136" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="75" y="779" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">config</text>
+<text x="175.0" y="809" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">SecurityConfig</text>
+<text x="175.0" y="825" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">PasswordConfig (BCrypt)</text>
+<text x="175.0" y="841" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">GlobalExceptionHandler</text>
+<text x="175.0" y="857" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">TraceIdFilter</text>
+<text x="175.0" y="873" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CustomAuthEntryPoint (401)</text>
+<text x="175.0" y="889" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CustomAccessDeniedHandler (403)</text>
+<path d="M320,785 v-22 h70 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="320" y="785" width="225" height="136" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="330" y="779" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">jwt</text>
+<text x="432.5" y="809" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">JwtAuthenticationFilter</text>
+<text x="432.5" y="825" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">JwtService</text>
+<text x="432.5" y="841" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">RevocacionTokenService</text>
+<text x="432.5" y="857" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">PurgaTokensRevocadosTask</text>
+<path d="M735,785 v-22 h86 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="735" y="785" width="220" height="136" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="745" y="779" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">exception</text>
+<text x="845.0" y="809" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">NegocioException</text>
+<text x="845.0" y="825" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">CodigosError</text>
+<path d="M990,785 v-22 h161 v22" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<rect x="990" y="785" width="245" height="136" fill="#FFFFFF" stroke="#B5B3AC" stroke-width="1.2"/>
+<text x="1000" y="779" font-size="12" font-weight="bold" text-anchor="start" fill="#1F1F1E">entity · repository</text>
+<text x="1112.5" y="809" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">Estado · TipoEstado</text>
+<text x="1112.5" y="825" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">TokenRevocado</text>
+<text x="1112.5" y="841" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">EstadoRepository</text>
+<text x="1112.5" y="857" font-size="12" font-weight="normal" text-anchor="middle" fill="#1F1F1E">TokenRevocadoRepository</text>
+<path d="M432,785 L432,611" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<text x="440" y="690" font-size="11" font-weight="normal" text-anchor="start" fill="#2F6FD6" font-style="italic">«use» UsuarioApi</text>
+<path d="M175,660 L175,745" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<text x="183" y="700" font-size="11" font-weight="normal" text-anchor="start" fill="#5F5E5A" font-style="italic">«use» excepciones,</text>
+<text x="183" y="714" font-size="11" font-weight="normal" text-anchor="start" fill="#5F5E5A" font-style="italic">Estado, JwtService</text>
+<path d="M1112,660 L1112,745" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<text x="1120" y="700" font-size="11" font-weight="normal" text-anchor="start" fill="#5F5E5A" font-style="italic">«use» excepciones,</text>
+<text x="1120" y="714" font-size="11" font-weight="normal" text-anchor="start" fill="#5F5E5A" font-style="italic">Estado</text>
+<path d="M30,1030 L80,1030" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
+<text x="88" y="1034" font-size="12" font-weight="normal" text-anchor="start" fill="#5F5E5A">dependencia «use»</text>
+<path d="M230,1030 L280,1030" fill="none" stroke="#4A4A48" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<text x="288" y="1034" font-size="12" font-weight="normal" text-anchor="start" fill="#5F5E5A">implementa interfaz</text>
+<rect x="440" y="1020" width="22" height="18" rx="2" fill="#DCE6F2" stroke="#2F6FD6" stroke-width="1.2"/>
+<text x="470" y="1034" font-size="12" font-weight="normal" text-anchor="start" fill="#5F5E5A">API pública del módulo (único punto de entrada entre módulos)</text>
+<path d="M900,1022 v-22 h115 v22" fill="#FFFFFF" stroke="#A9A7A0" stroke-width="1.2" stroke-dasharray="5 4"/>
+<rect x="900" y="1022" width="160" height="52" fill="#FFFFFF" stroke="#A9A7A0" stroke-width="1.2" stroke-dasharray="5 4"/>
+<text x="910" y="1016" font-size="11" font-weight="bold" text-anchor="start" fill="#1F1F1E">transferencias</text>
+<path d="M1080,1022 v-22 h74 v22" fill="#FFFFFF" stroke="#A9A7A0" stroke-width="1.2" stroke-dasharray="5 4"/>
+<rect x="1080" y="1022" width="180" height="52" fill="#FFFFFF" stroke="#A9A7A0" stroke-width="1.2" stroke-dasharray="5 4"/>
+<text x="1090" y="1016" font-size="11" font-weight="bold" text-anchor="start" fill="#1F1F1E">reportes</text>
+<text x="980" y="1054" font-size="11" font-weight="normal" text-anchor="middle" fill="#5F5E5A" font-style="italic">fuera de alcance</text>
+<text x="1170" y="1054" font-size="11" font-weight="normal" text-anchor="middle" fill="#5F5E5A" font-style="italic">fuera de alcance</text>
+</svg>
