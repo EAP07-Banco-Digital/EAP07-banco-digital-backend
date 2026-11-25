@@ -8,3 +8,9 @@ Fábrica escuela 2026-2
 3. Pide las credenciales de Neon al equipo; no están en el repositorio.
 4. Completa `.env` con esos valores.
 5. Ejecuta `./mvnw spring-boot:run`.
+
+## Arquitectura
+
+- [Arquitectura: estilo, paquetes, componentes con interfaces y despliegue](docs/arquitectura/ARQUITECTURA.md)
+- [Decisiones de arquitectura (ADR)](docs/adr/README.md)
+- Despliegue: https://eap07-banco-digital-backend.onrender.com/swagger-ui/index.html
