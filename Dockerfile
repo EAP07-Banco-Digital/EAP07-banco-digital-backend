@@ -22,6 +22,8 @@ COPY --from=build /app/target/banco-digital-backend-0.0.1-SNAPSHOT.jar app.jar
 
 # Exponemos el puerto (por convención, aunque Render inyectará el suyo)
 EXPOSE 8080
+# Puerto de gestion (Actuator/Prometheus); no se publica fuera de la red interna
+EXPOSE 8081
 
 # Comando para iniciar la aplicación
 ENTRYPOINT ["java", "-jar", "app.jar"]

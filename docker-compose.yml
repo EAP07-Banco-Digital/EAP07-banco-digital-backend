@@ -1,0 +1,88 @@
+# Entorno local completo del Banco Digital: API + PostgreSQL + Prometheus + Grafana.
+#   docker compose up -d --build
+# API:        http://localhost:8080/swagger-ui.html
+# Prometheus: http://localhost:9090
+# Grafana:    http://localhost:3000 (admin / admin, cambiar con GRAFANA_ADMIN_PASSWORD)
+# Puertos del host configurables: API_PORT, PROMETHEUS_PORT, GRAFANA_PORT, POSTGRES_PORT.
+# No usa la base Neon del equipo: los datos viven en el volumen postgres-datos.
+name: banco-digital
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: bancodigital
+      POSTGRES_USER: banco
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-banco-local}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres-datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banco -d bancodigital"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    image: banco-digital-backend:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/bancodigital
+      DB_USERNAME: banco
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-banco-local}
+      JWT_SECRET: ${JWT_SECRET:-clave-local-solo-para-docker-compose-32b}
+      MANAGEMENT_PORT: "8081"
+      SPRING_JPA_SHOW_SQL: "false"
+      # Hibernate crea las tablas y despues se siembran los catalogos (idempotente).
+      SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION: "true"
+      SPRING_SQL_INIT_MODE: always
+      SPRING_SQL_INIT_DATA_LOCATIONS: file:/semillas/catalogos.sql
+    volumes:
+      - ./observabilidad/postgres/catalogos.sql:/semillas/catalogos.sql:ro
+    ports:
+      - "${API_PORT:-8080}:8080"   # API publica
+      # 8081 (Actuator) no se publica: solo Prometheus lo alcanza en la red interna.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      retries: 12
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    depends_on:
+      - api
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observabilidad/prometheus:/etc/prometheus:ro
+      - prometheus-datos:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/banco-digital.json
+    volumes:
+      - ./observabilidad/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observabilidad/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-datos:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+
+volumes:
+  postgres-datos:
+  prometheus-datos:
+  grafana-datos:

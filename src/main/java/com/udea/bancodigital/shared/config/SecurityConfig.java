@@ -39,6 +39,12 @@ public class SecurityConfig {
                                 "/v3/api-docs",
                                 "/v3/api-docs/**"
                         ).permitAll()
+                        // Observabilidad: salud y metricas para Prometheus. Solo se
+                        // sirven en el puerto de gestion (management.server.port),
+                        // que no se publica; el resto de Actuator exige ADMIN.
+                        .requestMatchers("/actuator/health", "/actuator/health/**",
+                                "/actuator/info", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         // HU9: solo un administrador cambia roles. Va antes de
                         // anyRequest porque gana la primera regla que coincide.
                         .requestMatchers(HttpMethod.PUT, "/api/usuarios/*/rol").hasRole("ADMIN")
