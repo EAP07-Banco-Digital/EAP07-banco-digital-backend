@@ -125,6 +125,24 @@ class SecurityConfigTest {
                 .andExpect(jsonPath("$.email").value(CORREO));
     }
 
+    // DEF-T-04: la API es sin estado; ni una peticion autenticada ni una rechazada
+    // deben abrir HttpSession (antes salia la cookie JSESSIONID).
+    @Test
+    void laApiNoAbreSesionNiConTokenValidoNiSinToken() throws Exception {
+        tokenValidoDe("CLIENTE");
+        given(usuarioService.consultarPerfil(CORREO))
+                .willReturn(new PerfilUsuarioDTO(1L, "Juan Manuel Tabares", CORREO, "***4321",
+                        LocalDate.of(1998, 4, 15), "3001234567", "Calle 10 #20-30"));
+
+        var conToken = mockMvc.perform(get("/api/usuarios/me").header("Authorization", "Bearer " + TOKEN))
+                .andExpect(status().isOk()).andReturn();
+        var sinToken = mockMvc.perform(get("/api/usuarios/me"))
+                .andExpect(status().isUnauthorized()).andReturn();
+
+        org.assertj.core.api.Assertions.assertThat(conToken.getRequest().getSession(false)).isNull();
+        org.assertj.core.api.Assertions.assertThat(sinToken.getRequest().getSession(false)).isNull();
+    }
+
     @Test
     void unTokenDeUnUsuarioQueYaNoExisteTerminaEn401() throws Exception {
         given(jwtService.esTokenValido(TOKEN)).willReturn(true);

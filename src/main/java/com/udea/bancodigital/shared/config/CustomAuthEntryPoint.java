@@ -10,6 +10,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,6 +27,8 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        // Tomcat usa ISO-8859-1 si no se indica; los mensajes llevan tildes (DEF-T-04).
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
         boolean tokenRevocado = Boolean.TRUE.equals(
                 request.getAttribute(JwtAuthenticationFilter.TOKEN_REVOCADO_ATTR));
