@@ -8,6 +8,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,6 +25,8 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        // Tomcat usa ISO-8859-1 si no se indica; los mensajes llevan tildes (DEF-T-04).
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
         Map<String, Object> body = new HashMap<>();
         body.put("errorCode", "FORBIDDEN");

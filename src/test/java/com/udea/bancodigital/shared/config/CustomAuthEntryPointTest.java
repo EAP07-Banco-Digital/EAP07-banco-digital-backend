@@ -23,7 +23,7 @@ class CustomAuthEntryPointTest {
         entryPoint.commence(peticion, respuesta, new InsufficientAuthenticationException("Falta el token"));
 
         assertThat(respuesta.getStatus()).isEqualTo(401);
-        assertThat(respuesta.getContentType()).isEqualTo("application/json");
+        assertThat(respuesta.getContentType()).isEqualToIgnoringCase("application/json;charset=UTF-8");
         assertThat(respuesta.getCharacterEncoding()).isEqualToIgnoringCase("utf-8");
 
         JsonNode cuerpo = objectMapper.readTree(respuesta.getContentAsString());
@@ -70,5 +70,20 @@ class CustomAuthEntryPointTest {
         assertThat(cuerpo.get("message").asText()).isEqualTo("La sesion fue cerrada. Inicia sesion de nuevo");
         assertThat(cuerpo.get("details").isNull()).isTrue();
         assertThat(cuerpo.get("traceId").asText()).isEqualTo("0f1c3a6e-8b2d-4f7a-9c1e-5d3b7a2f4e80");
+    }
+
+    // DEF-T-04: Tomcat arranca la respuesta en ISO-8859-1; sin fijar UTF-8 la tilde
+    // de "sesión" llegaba como un byte invalido para el cliente.
+    @Test
+    void escribeEnUtf8AunqueElServidorUseIso88591PorDefecto() throws Exception {
+        MockHttpServletRequest peticion = new MockHttpServletRequest("GET", "/api/usuarios/me");
+        MockHttpServletResponse respuesta = new MockHttpServletResponse();
+        respuesta.setDefaultCharacterEncoding("ISO-8859-1");
+
+        entryPoint.commence(peticion, respuesta, new InsufficientAuthenticationException("Falta el token"));
+
+        assertThat(respuesta.getCharacterEncoding()).isEqualToIgnoringCase("utf-8");
+        String cuerpo = new String(respuesta.getContentAsByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(cuerpo).contains("Debes iniciar sesión");
     }
 }

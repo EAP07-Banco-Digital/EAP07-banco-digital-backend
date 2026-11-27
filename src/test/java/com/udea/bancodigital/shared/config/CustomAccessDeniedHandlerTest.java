@@ -23,7 +23,7 @@ class CustomAccessDeniedHandlerTest {
         handler.handle(peticion, respuesta, new AccessDeniedException("Rol insuficiente"));
 
         assertThat(respuesta.getStatus()).isEqualTo(403);
-        assertThat(respuesta.getContentType()).isEqualTo("application/json");
+        assertThat(respuesta.getContentType()).isEqualToIgnoringCase("application/json;charset=UTF-8");
         assertThat(respuesta.getCharacterEncoding()).isEqualToIgnoringCase("utf-8");
 
         JsonNode cuerpo = objectMapper.readTree(respuesta.getContentAsString());
@@ -42,5 +42,19 @@ class CustomAccessDeniedHandlerTest {
 
         JsonNode cuerpo = objectMapper.readTree(respuesta.getContentAsString());
         assertThat(cuerpo.get("traceId").isNull()).isTrue();
+    }
+
+    // DEF-T-04: mismo caso que el 401, con la tilde de "operación".
+    @Test
+    void escribeEnUtf8AunqueElServidorUseIso88591PorDefecto() throws Exception {
+        MockHttpServletRequest peticion = new MockHttpServletRequest("PUT", "/api/usuarios/2/rol");
+        MockHttpServletResponse respuesta = new MockHttpServletResponse();
+        respuesta.setDefaultCharacterEncoding("ISO-8859-1");
+
+        handler.handle(peticion, respuesta, new AccessDeniedException("Rol insuficiente"));
+
+        assertThat(respuesta.getCharacterEncoding()).isEqualToIgnoringCase("utf-8");
+        String cuerpo = new String(respuesta.getContentAsByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(cuerpo).contains("esta operación");
     }
 }
